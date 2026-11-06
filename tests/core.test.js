@@ -36,7 +36,7 @@ test('persistent rules redirect main frames and block protected embeds', () => {
 });
 test('allow rules apply only to one tab and one domain', () => {
   const rule = grantRule({ tabId: 17, domain: 'example.com' });
-  assert.deepEqual(rule.condition, { requestDomains: ['example.com'], tabIds: [17] });
+  assert.deepEqual(rule.condition, { requestDomains: ['example.com'], tabIds: [17], excludedResourceTypes: [] });
   assert.ok(rule.priority > domainRules(['example.com'], base)[0].priority);
 });
 test('only named top-level extension pages can authorize changes', () => {

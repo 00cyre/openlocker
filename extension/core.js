@@ -60,7 +60,9 @@ export function grantRule(grant) {
   return {
     id: grant.tabId + 1, priority: 100,
     action: { type: 'allow' },
-    condition: { requestDomains: [grant.domain], tabIds: [grant.tabId] }
+    // Omitting both resource-type fields excludes main_frame in Chrome. An
+    // explicit empty exclusion allows the page navigation and its resources.
+    condition: { requestDomains: [grant.domain], tabIds: [grant.tabId], excludedResourceTypes: [] }
   };
 }
 

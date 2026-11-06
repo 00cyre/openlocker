@@ -5,12 +5,24 @@ const ID = 'abcdefghijklmnopabcdefghijklmnop';
 const base = `chrome-extension://${ID}/`;
 const event = () => { const listeners = []; return { addListener(fn) { listeners.push(fn); }, fire(...args) { for (const fn of listeners) fn(...args); }, listeners }; };
 const copy = value => structuredClone(value);
+// Model the documented Chrome matching defaults at the navigation boundary.
+// In particular, an omitted resource-type filter EXCLUDES main_frame.
+// https://developer.chrome.com/docs/extensions/reference/api/declarativeNetRequest#type-RuleCondition
+function networkRule(rules, { url, type = 'main_frame', tabId }) {
+  const host = new URL(url).hostname;
+  return rules.filter(({ condition: c }) =>
+    (!c.tabIds || c.tabIds.includes(tabId)) &&
+    (!c.requestDomains || c.requestDomains.some(d => host === d || host.endsWith(`.${d}`))) &&
+    (!c.regexFilter || new RegExp(c.regexFilter).test(url)) &&
+    (c.resourceTypes ? c.resourceTypes.includes(type) : c.excludedResourceTypes ? !c.excludedResourceTypes.includes(type) : type !== 'main_frame')
+  ).sort((a, b) => b.priority - a.priority)[0];
+}
 function storage(initial = {}) {
   let data = initial;
   return { async get(defaults) { return copy({ ...defaults, ...data }); }, async set(value) { Object.assign(data, copy(value)); }, async setAccessLevel() {} };
 }
 let counter = 0;
-async function harness({ domains = ['example.com'], grants = [], tabs, native } = {}) {
+async function harness({ domains = ['example.com'], grants = [], tabs, native, network = false } = {}) {
   let dynamic = [];
   let sessionRules = [];
   const tabMap = new Map((tabs || [{ id: 1, active: true, url: `${base}locked.html#https://example.com/private`, windowId: 1 }]).map(t => [t.id, copy(t)]));
@@ -26,7 +38,14 @@ async function harness({ domains = ['example.com'], grants = [], tabs, native } 
     tabs: {
       query: async (query = {}) => [...tabMap.values()].filter(t => (!query.active || t.active) && (!query.windowId || t.windowId === query.windowId)).map(copy),
       get: async id => { if (!tabMap.has(id)) throw Error('No tab'); return copy(tabMap.get(id)); },
-      update: async (id, data) => { if (!tabMap.has(id)) throw Error('No tab'); Object.assign(tabMap.get(id), data); return copy(tabMap.get(id)); },
+      update: async (id, data) => {
+        if (!tabMap.has(id)) throw Error('No tab');
+        if (network && /^https?:/.test(data.url || '')) {
+          const rule = networkRule([...dynamic, ...sessionRules], { url: data.url, tabId: id });
+          if (rule?.action.type === 'redirect') data = { ...data, url: rule.action.redirect.regexSubstitution.replace('\\0', data.url) };
+        }
+        Object.assign(tabMap.get(id), data); return copy(tabMap.get(id));
+      },
       onActivated: event(), onUpdated: event(), onRemoved: event()
     },
     windows: { WINDOW_ID_NONE: -1, onFocusChanged: event() },
@@ -46,6 +65,20 @@ test('successful native authentication unlocks one tab only', async () => {
   assert.equal(result.ok, true);
   assert.equal(h.tabMap.get(1).url, 'https://example.com/private');
   assert.deepEqual(h.rules().sessionRules[0].condition.tabIds, [1]);
+});
+test('successful Touch ID reaches a localhost page instead of redirecting back to the lock screen', async () => {
+  const url = 'http://127.0.0.1:4173/private';
+  const h = await harness({ network: true, domains: ['127.0.0.1'], tabs: [{ id: 1, active: true, windowId: 1, url: `${base}locked.html#${url}` }] });
+  const result = await h.send({ type: 'UNLOCK' });
+  assert.equal(result.ok, true, result.error);
+  assert.equal(h.tabMap.get(1).url, url, 'The unlock must allow the main-frame navigation, otherwise the new lock page automatically prompts again');
+  const rules = [...h.rules().dynamic, ...h.rules().sessionRules];
+  for (const type of ['main_frame', 'sub_frame', 'script', 'xmlhttprequest', 'websocket']) {
+    assert.equal(networkRule(rules, { url, tabId: 1, type }).action.type, 'allow', type);
+  }
+  assert.equal(networkRule(rules, { url, tabId: 2 }).action.type, 'redirect', 'Other tabs stay locked');
+  await h.send({ type: 'LOCK_ALL' }, h.sender('settings.html'));
+  assert.ok(h.tabMap.get(1).url.startsWith(base), 'Relocking still redirects the page');
 });
 test('cancellation leaves persistent rules and creates no grant', async () => {
   const h = await harness({ native: async (_, message) => ({ id: message.id, success: false, message: 'Cancelled.' }) });

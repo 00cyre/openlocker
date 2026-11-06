@@ -60,6 +60,12 @@ Current automated additions: universal Apple Silicon/Intel builds, code-signatur
 - Decline access, close/reopen setup, and retry. No background permission resets may occur. Cancel Touch ID and confirm the protected app remains covered.
 - Automatic coverage: the real installer + Security.framework test rejects the old requirement for a changed ad-hoc identity, accepts it for a changed stable-signed binary, and tests preservation of app settings. Approval state tests check reset failure, retry, already-trusted protection, and repeated polling/clicks. Real macOS permission dialogs and physical Touch ID remain manual checks.
 
+## Successful navigation after Touch ID
+
+- Protect a local site on `127.0.0.1`, open it, and complete Touch ID. The site must load without a second prompt. Repeat for an HTTPS domain.
+- Confirm scripts, fetch requests, and WebSockets still work in the unlocked tab. The same protected domain in another tab must remain locked.
+- Switch tabs or use Lock all, then return. Touch ID should be required again.
+
 ## 0.1.2 updates and automatic prompts
 
 - From the Mac menu, install Chrome setup, confirm the native host reports ready, and complete Load unpacked from the managed folder. Preserve the extension ID and protected domains during migration from a source checkout.
