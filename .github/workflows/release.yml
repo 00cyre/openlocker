@@ -2,6 +2,12 @@ name: Release OpenLocker
 on:
   push:
     tags: ['v*']
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Existing version tag to release'
+        required: true
+        type: string
 permissions:
   contents: read
 jobs:
@@ -11,9 +17,11 @@ jobs:
       contents: write
     env:
       OPENLOCKER_RELEASE: '1'
-      OPENLOCKER_SIGNING_KEYCHAIN: ${{ runner.temp }}/openlocker-release.keychain-db
+      OPENLOCKER_TAG: ${{ inputs.tag || github.ref_name }}
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.tag || github.ref_name }}
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
@@ -21,8 +29,9 @@ jobs:
         env:
           SIGNING_P12: ${{ secrets.OPENLOCKER_SIGNING_P12 }}
         run: |
+          echo "OPENLOCKER_SIGNING_KEYCHAIN=$RUNNER_TEMP/openlocker-release.keychain-db" >> "$GITHUB_ENV"
           test -n "$SIGNING_P12" || { echo 'Persistent release signing identity is missing.'; exit 1; }
-          test "$GITHUB_REF_NAME" = "v$(node -p 'JSON.parse(require("fs").readFileSync("package.json")).version')"
+          test "$OPENLOCKER_TAG" = "v$(node -p 'JSON.parse(require("fs").readFileSync("package.json")).version')"
           OPENLOCKER_ROOT="$PWD"
           source scripts/signing.sh
           echo "OPENLOCKER_SIGNING_IDENTITY=$(openlocker_release_fingerprint)" >> "$GITHUB_ENV"
@@ -40,9 +49,9 @@ jobs:
         run: |
           VERSION="$(node -p 'JSON.parse(require("fs").readFileSync("package.json")).version')"
           shasum -a 256 "dist/OpenLocker-$VERSION-source.zip" | sed 's|dist/||' >> dist/SHA256SUMS.txt
-          gh release create "$GITHUB_REF_NAME" --verify-tag --title "OpenLocker $VERSION" --notes-file "docs/releases/$VERSION.md" --latest \
+          gh release create "$OPENLOCKER_TAG" --verify-tag --title "OpenLocker $VERSION" --notes-file "docs/releases/$VERSION.md" --latest \
             "dist/OpenLocker-$VERSION-macOS.dmg" "dist/OpenLocker-$VERSION-macOS.zip" \
             "dist/OpenLocker-$VERSION-source.zip" dist/SHA256SUMS.txt
       - name: Remove release keychain
         if: always()
-        run: security delete-keychain "$OPENLOCKER_SIGNING_KEYCHAIN" || true
+        run: security delete-keychain "${OPENLOCKER_SIGNING_KEYCHAIN:-$RUNNER_TEMP/openlocker-release.keychain-db}" || true
