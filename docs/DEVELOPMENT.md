@@ -45,6 +45,8 @@ npm run package
 
 The installer build cross-compiles `arm64` and `x86_64`, merges each executable with `lipo`, and ad-hoc signs the resulting bundles. The DMG and ZIP contain the compiled app, extension, and native helper; they do not download code at install time. Installer tests use temporary home-directory fixtures and do not install to the developer's account.
 
+Do not rebuild the copy currently running. `build-mac-app.sh` refuses that destination, because replacing an ad-hoc signed binary can invalidate Accessibility approval even while Settings displays it as enabled. Use a separate `OPENLOCKER_DESKTOP_DEST` for development builds, or quit before rebuilding and renew approval if needed. Installer builds already use a separate `build/release-desktop` destination.
+
 GitHub CI builds both the Chrome code and the universal macOS artifacts. Builds are ad-hoc signed, not notarized. A production distribution should use a Developer ID certificate, hardened runtime where appropriate, and Apple's notarization service before claiming a smooth Gatekeeper launch.
 
 ## Mac app flow

@@ -3,6 +3,15 @@ set -euo pipefail
 OPENLOCKER_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$OPENLOCKER_ROOT"
 OPENLOCKER_MAC_APP="${OPENLOCKER_DESKTOP_DEST:-$OPENLOCKER_ROOT/build/desktop/OpenLocker.app}"
+# An ad-hoc signature identifies the exact binary. Replacing a live app can
+# leave Settings showing an enabled approval for a different code identity.
+while IFS= read -r OPENLOCKER_RUNNING_PATH; do
+  if [[ "$OPENLOCKER_RUNNING_PATH" == "$OPENLOCKER_MAC_APP/Contents/MacOS/OpenLockerMac" ]]; then
+    echo 'OpenLocker is running from this build destination.' >&2
+    echo 'Quit it before rebuilding, or set OPENLOCKER_DESKTOP_DEST to a separate app path.' >&2
+    exit 1
+  fi
+done < <(/bin/ps -axo comm=)
 mkdir -p "$OPENLOCKER_MAC_APP/Contents/MacOS" "$OPENLOCKER_MAC_APP/Contents/Resources"
 OPENLOCKER_MAC_BINARIES=()
 for OPENLOCKER_ARCH in ${OPENLOCKER_ARCHS:-$(uname -m)}; do

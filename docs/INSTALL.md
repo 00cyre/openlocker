@@ -60,7 +60,7 @@ Quit the menu-bar app using its menu, run the new installer, and reopen OpenLock
 
 ## Troubleshooting
 
-- **Accessibility not recognized:** ensure the installed `~/Applications/OpenLocker.app` is the allowed item. Updates to an ad-hoc signed binary may require reapproving it. Restart the app after changing permission.
+- **Accessibility enabled but OpenLocker still asks:** an ad-hoc rebuild can change the app's code identity while Settings continues to show the old approval as enabled. Quit OpenLocker, select its stale entry in Privacy & Security → Accessibility (called Device Control and Data Access on some macOS versions), remove that entry with **−**, then use **+** to add the exact app you will launch. Enable it and reopen the app. For the installer version, choose `~/Applications/OpenLocker.app`; for a development build, choose that build's `OpenLocker.app`. Merely switching an old entry off and on may preserve its stale identity. This requires your approval because it grants access to control apps.
 - **An app is briefly visible or not fully covered:** app locking reacts to macOS events; it cannot block launches or guarantee that every window is covered in every OS transition. Do not rely on it for sensitive material on an untrusted Mac.
 - **Touch ID unavailable:** enroll a fingerprint, open your MacBook lid, or use an eligible Touch ID keyboard. After biometric lockout or a restart, unlock macOS with your password first. OpenLocker itself never falls back to a password.
 - **Chrome helper not found:** run the installer again, then use **Check again** in extension settings. Confirm the extension ID is `hnbakoefkkiblpegjcefcilkdplphmbg`.
