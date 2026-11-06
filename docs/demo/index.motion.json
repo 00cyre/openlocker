@@ -1,0 +1,28 @@
+{
+  "duration": 32,
+  "assertions": [
+    {
+      "kind": "appearsBy",
+      "selector": "#intro-title",
+      "bySec": 0.1
+    },
+    {
+      "kind": "staysInFrame",
+      "selector": "#chrome-browser"
+    },
+    {
+      "kind": "staysInFrame",
+      "selector": "#mac-desktop"
+    },
+    {
+      "kind": "before",
+      "a": "#chrome-popup",
+      "b": "#chrome-touch"
+    },
+    {
+      "kind": "before",
+      "a": "#mac-shield",
+      "b": "#mac-touch"
+    }
+  ]
+}

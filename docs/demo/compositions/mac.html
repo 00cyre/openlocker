@@ -1,0 +1,673 @@
+<template
+  ><style>
+    #root {
+      position: absolute;
+      inset: 0;
+    }
+    .note-content {
+      display: flex;
+      position: absolute;
+      inset: 108px 0 0;
+      background: #fff;
+    }
+    .note-sidebar {
+      width: 320px;
+      padding: 44px 30px;
+      background: #f0f1eb;
+      border-right: 1px solid #e3e6dc;
+      font-size: 25px;
+      color: #5e6856;
+    }
+    .note-sidebar strong {
+      display: block;
+      margin-bottom: 38px;
+      color: #394b2e;
+      font-size: 27px;
+    }
+    .note-sidebar div {
+      padding: 16px 20px;
+      margin: 8px -8px;
+    }
+    .note-selected {
+      background: #dce5cf;
+      border-radius: 10px;
+      color: #334b35;
+    }
+    .note-page {
+      padding: 46px 62px;
+      flex: 1;
+    }
+    .note-date {
+      font-size: 21px;
+      letter-spacing: 2px;
+      color: #6a735f;
+      margin-bottom: 24px;
+    }
+    .note-page h3 {
+      font-size: 54px;
+      letter-spacing: -2px;
+      line-height: 1.12;
+      color: #334b35;
+      margin-bottom: 26px;
+    }
+    .note-page p {
+      font-size: 27px;
+      line-height: 1.5;
+      color: #626b5c;
+    }
+    .note-rule {
+      height: 12px;
+      width: 440px;
+      background: #e6e9df;
+      margin-top: 28px;
+      border-radius: 4px;
+    }
+    .note-rule.short {
+      width: 300px;
+      margin-top: 15px;
+    }
+    .desktop {
+      background: #e3e9d9;
+    }
+    .menubar {
+      height: 50px;
+      display: flex;
+      align-items: center;
+      padding: 0 28px;
+      gap: 28px;
+      font-size: 23px;
+      background: #f4f5f0;
+      border-bottom: 1px solid #ced7c4;
+    }
+    .menubar strong {
+      font-size: 24px;
+    }
+    .menu-spacer {
+      flex: 1;
+    }
+    .menu-icon {
+      width: 36px;
+      height: 36px;
+      padding: 4px;
+      margin-right: 12px;
+      color: #334b35;
+    }
+    .menu-clock {
+      font-size: 22px;
+      margin-left: 12px;
+    }
+    .mac-window {
+      position: absolute;
+      left: 180px;
+      top: 105px;
+      width: 1160px;
+      height: 500px;
+      border: 1px solid #ccd3c4;
+      border-radius: 14px;
+      background: white;
+      box-shadow: 0 14px 35px #334b3525;
+      overflow: hidden;
+    }
+    .window-title {
+      height: 62px;
+      background: #f8f8f5;
+      display: flex;
+      align-items: center;
+      padding: 0 25px;
+      gap: 30px;
+      font-size: 25px;
+      border-bottom: 1px solid #e1e4da;
+    }
+    .window-title b {
+      font-weight: 400;
+      margin-left: 390px;
+    }
+    .mac-window .note-content {
+      inset: 62px 0 0;
+    }
+    .mac-window .note-sidebar {
+      width: 275px;
+      font-size: 23px;
+      padding: 32px 25px;
+    }
+    .mac-window .note-sidebar strong {
+      font-size: 24px;
+      margin-bottom: 24px;
+    }
+    .mac-window .note-page {
+      padding: 32px 44px;
+    }
+    .mac-window .note-date {
+      font-size: 18px;
+      margin-bottom: 16px;
+    }
+    .mac-window .note-page h3 {
+      font-size: 43px;
+      margin-bottom: 18px;
+    }
+    .mac-window .note-page p {
+      font-size: 24px;
+    }
+    .mac-window .note-rule {
+      margin-top: 20px;
+      width: 340px;
+    }
+    .mac-window .note-rule.short {
+      width: 250px;
+      margin-top: 12px;
+    }
+    .mac-menu {
+      position: absolute;
+      right: 95px;
+      top: 54px;
+      width: 400px;
+      padding: 14px 12px;
+      background: #f4f5f0;
+      border: 1px solid #c3cbbb;
+      border-radius: 12px;
+      box-shadow: 0 10px 30px #0003;
+      z-index: 30;
+      font-size: 25px;
+    }
+    .menu-item {
+      padding: 13px 18px;
+      line-height: 1.1;
+      border-radius: 6px;
+    }
+    .menu-selected {
+      background: #334b35;
+      color: white;
+    }
+    .menu-divider {
+      height: 1px;
+      background: #cdd4c4;
+      margin: 10px;
+    }
+    .menu-muted {
+      color: #68725e;
+      font-size: 22px;
+    }
+    .pick-outline {
+      position: absolute;
+      inset: 102px 193px 52px 177px;
+      border: 5px solid #5f833e;
+      border-radius: 18px;
+      background: #bdd4a32c;
+      pointer-events: none;
+    }
+    .pick-label {
+      position: absolute;
+      top: 67px;
+      left: 470px;
+      background: #334b35;
+      color: #fff;
+      border-radius: 10px;
+      padding: 13px 23px;
+      font-size: 25px;
+    }
+    .mac-shield {
+      position: absolute;
+      left: 180px;
+      top: 105px;
+      width: 1160px;
+      height: 500px;
+      border-radius: 14px;
+      background: #eff3e8a8;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      color: #334b35;
+      font-size: 27px;
+      line-height: 1.5;
+    }
+    .mac-shield .small-lock {
+      width: 35px;
+      height: 35px;
+      margin: 0 auto 12px;
+      display: block;
+    }
+    .mac-shield strong {
+      font-weight: 700;
+    }
+    .mac-shield p {
+      font-size: 24px;
+    }
+    .mac-gate {
+      position: absolute;
+      left: 568px;
+      top: 123px;
+      width: 400px;
+      height: 465px;
+      border: 1px solid #c6cdbd;
+      border-radius: 14px;
+      background: #f5f5f0;
+      text-align: center;
+      box-shadow: 0 18px 40px #0003;
+      z-index: 20;
+    }
+    .gate-titlebar {
+      height: 36px;
+      font-size: 17px;
+      line-height: 36px;
+      border-bottom: 1px solid #d6dbcf;
+    }
+    .gate-fp {
+      width: 62px;
+      height: 62px;
+      margin: 25px auto 17px;
+      color: #334b35;
+    }
+    .mac-gate h3 {
+      font-size: 28px;
+      color: #334b35;
+    }
+    .mac-gate p {
+      font-size: 19px;
+      line-height: 1.4;
+      margin: 17px 24px;
+      color: #626b5c;
+    }
+    .mac-gate .primary-button {
+      height: 48px;
+      font-size: 21px;
+      margin: 20px 35px;
+    }
+    .mac-gate .keep {
+      font-size: 20px;
+      margin-top: 12px;
+      color: #626b5c;
+    }
+    .mac-auth {
+      top: 170px;
+      left: 508px;
+      z-index: 25;
+    }
+  </style>
+  <div
+    id="root"
+    data-composition-id="mac"
+    data-duration="14"
+    data-width="1920"
+    data-height="1080"
+  >
+    <div
+      id="mac-title-pick"
+      class="clip"
+      data-start="0"
+      data-duration="4"
+      data-beat="Pick an app to protect."
+    >
+      <h2 class="heading">Pick an app to protect.</h2>
+      <p class="subheading">
+        Menu-bar icon → “Lock an app…” → click its window.
+      </p>
+    </div>
+    <div
+      id="mac-title-touch"
+      class="clip"
+      data-start="4"
+      data-duration="3.9"
+      data-beat="Touch ID is already waiting."
+    >
+      <h2 class="heading">Touch ID is already waiting.</h2>
+      <p class="subheading">No extra click. Just your fingerprint.</p>
+    </div>
+    <div
+      id="mac-title-back"
+      class="clip"
+      data-start="7.9"
+      data-duration="3.2"
+      data-beat="Your window stays right here."
+    >
+      <h2 class="heading">Your window stays right here.</h2>
+      <p class="subheading">Unlock and carry on.</p>
+    </div>
+    <div
+      id="mac-title-away"
+      class="clip"
+      data-start="11.1"
+      data-duration="2.9"
+      data-beat="Switch away. It locks."
+    >
+      <h2 class="heading">Switch away. It locks.</h2>
+      <p class="subheading">Blurred. Input blocked. Until you return.</p>
+    </div>
+    <div id="mac-desktop" class="screen desktop">
+      <div class="menubar">
+        <strong>●</strong><strong>Notes</strong><span>File</span
+        ><span>Edit</span><span>View</span>
+        <div class="menu-spacer"></div>
+        <div id="mac-menu-icon" class="menu-icon">
+          <svg viewBox="0 0 32 32" fill="none" aria-hidden="true">
+            <path
+              d="M10 14V9a6 6 0 0 1 12 0v5"
+              stroke="currentColor"
+              stroke-width="2.5"
+            />
+            <rect
+              x="6"
+              y="13"
+              width="20"
+              height="16"
+              rx="5"
+              fill="currentColor"
+            />
+            <path
+              d="M16 19v5"
+              stroke="#d8edb4"
+              stroke-width="2.5"
+              stroke-linecap="round"
+            />
+          </svg>
+        </div>
+        <span>⌁</span><span class="menu-clock">Fri 9:41</span>
+      </div>
+      <div class="mac-window" data-layout-allow-overlap id="mac-notes">
+        <div class="window-title">
+          <div class="dots"><i></i><i></i><i></i></div>
+          <b>Notes</b>
+        </div>
+        <div class="note-content" id="mac-note-content">
+          <div class="note-sidebar">
+            <strong>My space</strong>
+            <div class="note-selected">Personal notes</div>
+            <div>Ideas</div>
+            <div>Saved places</div>
+          </div>
+          <div class="note-page">
+            <div class="note-date">YOUR EVERYDAY CORNER</div>
+            <h3>A little space<br />for your thoughts.</h3>
+            <p>Weekend plans, bright ideas,<br />and things just for you.</p>
+            <div class="note-rule"></div>
+            <div class="note-rule short"></div>
+          </div>
+        </div>
+      </div>
+      <div
+        id="mac-menu-clip"
+        class="clip"
+        data-start="1"
+        data-duration="1.6"
+        data-beat="Mac menu"
+        data-layout-allow-occlusion
+      >
+        <div class="mac-menu" id="mac-menu">
+          <div class="menu-item menu-selected">Lock an app…</div>
+          <div class="menu-item">Lock all now</div>
+          <div class="menu-divider"></div>
+          <div class="menu-item menu-muted">No protected apps yet</div>
+          <div class="menu-divider"></div>
+          <div class="menu-item menu-muted">Start at login</div>
+        </div>
+      </div>
+      <div
+        id="mac-pick-clip"
+        class="clip"
+        data-start="2.6"
+        data-duration="1.2"
+        data-beat="Window selection"
+        data-layout-allow-occlusion
+      >
+        <div class="pick-outline"></div>
+        <div class="pick-label">Select Notes</div>
+      </div>
+      <div
+        id="mac-shield-clip"
+        class="clip"
+        data-start="3.8"
+        data-duration="4"
+        data-layout-allow-occlusion
+      >
+        <div class="mac-shield" data-layout-allow-overlap id="mac-shield">
+          <div>
+            <span class="small-lock"
+              ><svg viewBox="0 0 32 32" fill="none" aria-hidden="true">
+                <path
+                  d="M10 14V9a6 6 0 0 1 12 0v5"
+                  stroke="currentColor"
+                  stroke-width="2.5"
+                />
+                <rect
+                  x="6"
+                  y="13"
+                  width="20"
+                  height="16"
+                  rx="5"
+                  fill="currentColor"
+                />
+                <path
+                  d="M16 19v5"
+                  stroke="#d8edb4"
+                  stroke-width="2.5"
+                  stroke-linecap="round"
+                /></svg></span
+            ><strong>Notes is locked</strong>
+            <p>Click to unlock with Touch ID</p>
+          </div>
+        </div>
+      </div>
+      <div
+        id="mac-gate-clip"
+        class="clip"
+        data-start="3.9"
+        data-duration="3.9"
+        data-layout-allow-occlusion
+      >
+        <div class="mac-gate" data-layout-allow-overlap id="mac-gate">
+          <div class="gate-titlebar">OpenLocker</div>
+          <div class="gate-fp">
+            <svg viewBox="0 0 64 64" fill="none" aria-hidden="true">
+              <g
+                stroke="currentColor"
+                stroke-width="2.6"
+                stroke-linecap="round"
+              >
+                <path d="M11 25c2-10 10-17 21-17s20 8 21 19" />
+                <path
+                  d="M7 37v-4m50 2v-2M15 43c3-5 2-10 3-16a14 14 0 0 1 28 1c0 12-2 20-7 28"
+                />
+                <path
+                  d="M9 49c5-6 7-12 6-18M24 49c5-7 5-14 5-20a3 3 0 0 1 6 0c0 10-1 20-8 29M20 56l3-4M39 47c3-8 3-15 3-18a10 10 0 0 0-20 0c0 7 0 12-4 18M49 49c4-9 4-15 4-19"
+                />
+              </g>
+            </svg>
+          </div>
+          <h3>Notes is locked.</h3>
+          <p>
+            A quick touch, and you’re back in.<br />Relocks when you leave or<br />minimize
+            a window.
+          </p>
+          <div class="primary-button">Unlock with Touch ID</div>
+          <div class="keep">Keep locked</div>
+        </div>
+      </div>
+      <div
+        id="mac-touch-clip"
+        class="clip"
+        data-start="4.35"
+        data-duration="3.3"
+        data-beat="Automatic Mac Touch ID"
+        data-layout-allow-occlusion
+      >
+        <div
+          class="touch-card mac-auth"
+          data-layout-allow-overlap
+          id="mac-touch"
+        >
+          <div class="touch-icon">
+            <svg viewBox="0 0 64 64" fill="none" aria-hidden="true">
+              <g
+                stroke="currentColor"
+                stroke-width="2.6"
+                stroke-linecap="round"
+              >
+                <path d="M11 25c2-10 10-17 21-17s20 8 21 19" />
+                <path
+                  d="M7 37v-4m50 2v-2M15 43c3-5 2-10 3-16a14 14 0 0 1 28 1c0 12-2 20-7 28"
+                />
+                <path
+                  d="M9 49c5-6 7-12 6-18M24 49c5-7 5-14 5-20a3 3 0 0 1 6 0c0 10-1 20-8 29M20 56l3-4M39 47c3-8 3-15 3-18a10 10 0 0 0-20 0c0 7 0 12-4 18M49 49c4-9 4-15 4-19"
+                />
+              </g>
+            </svg>
+          </div>
+          <div class="touch-title">Touch ID</div>
+          <p class="touch-detail">OpenLocker wants to unlock<br />Notes.</p>
+          <div class="touch-cancel">Keep locked</div>
+          <div
+            class="verified"
+            data-layout-allow-overlap
+            id="mac-verified"
+            style="opacity: 0"
+          >
+            <svg viewBox="0 0 64 64" fill="none">
+              <path
+                d="M13 33l12 12 27-28"
+                stroke="currentColor"
+                stroke-width="5"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+              /></svg
+            ><strong>You’re in.</strong>
+          </div>
+        </div>
+      </div>
+      <div
+        id="mac-relock-clip"
+        class="clip"
+        data-start="11.2"
+        data-duration="2.8"
+        data-beat="App relocked"
+        data-layout-allow-occlusion
+      >
+        <div
+          class="mac-shield"
+          data-layout-allow-overlap
+          data-layout-allow-overlap
+        >
+          <div>
+            <strong>Notes is locked</strong>
+            <p>Click to unlock with Touch ID</p>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div id="mac-pointer" class="pointer">
+      <svg viewBox="0 0 24 24">
+        <path
+          d="M5 3 L5 19 L9 15 L12 22 L15 20.5 L11.5 14 L18 14 Z"
+          fill="#20251e"
+          stroke="white"
+          stroke-width="1.4"
+          stroke-linejoin="round"
+        />
+      </svg>
+    </div>
+  </div>
+  <script>
+    (() => {
+      const tl = gsap.timeline({ paused: true });
+      tl.fromTo(
+        "#mac-desktop",
+        { y: 24, scale: 0.98 },
+        { y: 0, scale: 1, duration: 0.55, ease: "power3.out" },
+        0,
+      );
+      tl.fromTo(
+        "#mac-pointer",
+        { x: 1360, y: 550 },
+        { x: 1489, y: 300, duration: 0.55, ease: "power2.inOut" },
+        0.2,
+      );
+      tl.to("#mac-pointer", { scale: 0.85, duration: 0.1 }, 0.85).to(
+        "#mac-pointer",
+        { scale: 1, duration: 0.14 },
+        0.95,
+      );
+      tl.fromTo(
+        "#mac-menu",
+        { opacity: 0, y: -7 },
+        { opacity: 1, y: 0, duration: 0.2 },
+        1,
+      );
+      tl.to(
+        "#mac-pointer",
+        { x: 1350, y: 377, duration: 0.5, ease: "power2.inOut" },
+        1.65,
+      );
+      tl.to("#mac-pointer", { scale: 0.85, duration: 0.1 }, 2.35).to(
+        "#mac-pointer",
+        { scale: 1, duration: 0.14 },
+        2.45,
+      );
+      tl.to(
+        "#mac-pointer",
+        { x: 1000, y: 650, duration: 0.55, ease: "power2.inOut" },
+        2.6,
+      );
+      tl.to("#mac-pointer", { scale: 0.85, duration: 0.1 }, 3.55).to(
+        "#mac-pointer",
+        { scale: 1, duration: 0.14 },
+        3.65,
+      );
+
+      tl.to("#mac-pointer", { opacity: 0, duration: 0.15 }, 3.8);
+      tl.fromTo(
+        "#mac-notes",
+        { filter: "blur(0px)" },
+        { filter: "blur(16px)", duration: 0.2 },
+        3.8,
+      );
+      tl.fromTo(
+        "#mac-shield",
+        { opacity: 0 },
+        { opacity: 1, duration: 0.2 },
+        3.8,
+      );
+      tl.fromTo(
+        "#mac-gate",
+        { opacity: 0, scale: 0.97 },
+        { opacity: 1, scale: 1, duration: 0.2 },
+        3.9,
+      );
+      tl.fromTo(
+        "#mac-touch",
+        { opacity: 0, scale: 0.94 },
+        { opacity: 1, scale: 1, duration: 0.25, ease: "power2.out" },
+        4.35,
+      );
+      tl.fromTo(
+        "#mac-touch .touch-icon",
+        { color: "#334b35" },
+        { color: "#95b567", duration: 0.6, yoyo: true, repeat: 1 },
+        5.1,
+      );
+      tl.fromTo(
+        "#mac-verified",
+        { opacity: 0 },
+        { opacity: 1, duration: 0.15 },
+        6.6,
+      );
+      tl.to("#mac-touch", { opacity: 0, duration: 0.18 }, 7.4);
+      tl.to("#mac-gate", { opacity: 0, duration: 0.18 }, 7.5);
+      tl.to("#mac-shield", { opacity: 0, duration: 0.18 }, 7.6);
+      tl.to("#mac-notes", { filter: "blur(0px)", duration: 0.2 }, 7.6);
+      tl.set("#mac-pointer", { x: 1000, y: 650, opacity: 1 }, 10.2);
+      tl.to(
+        "#mac-pointer",
+        { x: 1620, y: 865, duration: 0.65, ease: "power2.inOut" },
+        10.4,
+      );
+      tl.to("#mac-pointer", { scale: 0.85, duration: 0.1 }, 11.05).to(
+        "#mac-pointer",
+        { scale: 1, duration: 0.14 },
+        11.15,
+      );
+      tl.to("#mac-notes", { filter: "blur(16px)", duration: 0.2 }, 11.2);
+      tl.to("#mac-pointer", { opacity: 0, duration: 0.2 }, 11.6);
+      window.__timelines = window.__timelines || {};
+      window.__timelines["mac"] = tl;
+    })();
+  </script></template
+>

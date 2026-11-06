@@ -1,0 +1,112 @@
+<template
+  ><style>
+    #root {
+      position: absolute;
+      inset: 0;
+    }
+    .intro-brand {
+      position: absolute;
+      left: 192px;
+      top: 225px;
+      font-size: 36px;
+    }
+    .intro-title {
+      position: absolute;
+      left: 185px;
+      top: 340px;
+      font-size: 118px;
+      line-height: 1.05;
+      letter-spacing: -6px;
+      color: var(--green);
+    }
+    .intro-line {
+      position: absolute;
+      left: 193px;
+      top: 663px;
+      font-size: 42px;
+      letter-spacing: -1px;
+    }
+    .intro-icon {
+      position: absolute;
+      left: 1285px;
+      top: 345px;
+      width: 360px;
+      height: 360px;
+      border-radius: 86px;
+    }
+    .intro-foot {
+      position: absolute;
+      left: 195px;
+      top: 865px;
+      font-size: 29px;
+      color: var(--muted);
+    }
+  </style>
+  <div
+    id="root"
+    data-composition-id="intro"
+    data-duration="3"
+    data-width="1920"
+    data-height="1080"
+  >
+    <div class="brand intro-brand">
+      <svg
+        style="width: 42px; height: 42px"
+        viewBox="0 0 32 32"
+        fill="none"
+        aria-hidden="true"
+      >
+        <path
+          d="M10 14V9a6 6 0 0 1 12 0v5"
+          stroke="currentColor"
+          stroke-width="2.5"
+        />
+        <rect x="6" y="13" width="20" height="16" rx="5" fill="currentColor" />
+        <path
+          d="M16 19v5"
+          stroke="#d8edb4"
+          stroke-width="2.5"
+          stroke-linecap="round"
+        /></svg
+      >openlocker
+    </div>
+    <h1 id="intro-title" class="intro-title">
+      Private apps.<br />Private tabs.
+    </h1>
+    <p id="intro-line" class="intro-line">One fingerprint. You’re back in.</p>
+    <div id="intro-icon" class="intro-icon fp-box">
+      <svg viewBox="0 0 64 64" fill="none" aria-hidden="true">
+        <g stroke="currentColor" stroke-width="2.6" stroke-linecap="round">
+          <path d="M11 25c2-10 10-17 21-17s20 8 21 19" />
+          <path
+            d="M7 37v-4m50 2v-2M15 43c3-5 2-10 3-16a14 14 0 0 1 28 1c0 12-2 20-7 28"
+          />
+          <path
+            d="M9 49c5-6 7-12 6-18M24 49c5-7 5-14 5-20a3 3 0 0 1 6 0c0 10-1 20-8 29M20 56l3-4M39 47c3-8 3-15 3-18a10 10 0 0 0-20 0c0 7 0 12-4 18M49 49c4-9 4-15 4-19"
+          />
+        </g>
+      </svg>
+    </div>
+    <p class="intro-foot">Touch ID for your Mac + Chrome</p>
+  </div>
+  <script>
+    (() => {
+      const tl = gsap.timeline({ paused: true });
+      tl.fromTo(
+        "#intro-icon",
+        { scale: 0.86, rotation: -7 },
+        { scale: 1, rotation: 0, duration: 0.8, ease: "power3.out" },
+        0,
+      );
+      tl.fromTo(
+        "#intro-line",
+        { opacity: 0, y: 18 },
+        { opacity: 1, y: 0, duration: 0.45, ease: "power2.out" },
+        0.3,
+      );
+
+      window.__timelines = window.__timelines || {};
+      window.__timelines["intro"] = tl;
+    })();
+  </script></template
+>

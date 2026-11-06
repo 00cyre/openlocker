@@ -1,0 +1,612 @@
+<template
+  ><style>
+    #root {
+      position: absolute;
+      inset: 0;
+    }
+    .note-content {
+      display: flex;
+      position: absolute;
+      inset: 108px 0 0;
+      background: #fff;
+    }
+    .note-sidebar {
+      width: 320px;
+      padding: 44px 30px;
+      background: #f0f1eb;
+      border-right: 1px solid #e3e6dc;
+      font-size: 25px;
+      color: #5e6856;
+    }
+    .note-sidebar strong {
+      display: block;
+      margin-bottom: 38px;
+      color: #394b2e;
+      font-size: 27px;
+    }
+    .note-sidebar div {
+      padding: 16px 20px;
+      margin: 8px -8px;
+    }
+    .note-selected {
+      background: #dce5cf;
+      border-radius: 10px;
+      color: #334b35;
+    }
+    .note-page {
+      padding: 46px 62px;
+      flex: 1;
+    }
+    .note-date {
+      font-size: 21px;
+      letter-spacing: 2px;
+      color: #6a735f;
+      margin-bottom: 24px;
+    }
+    .note-page h3 {
+      font-size: 54px;
+      letter-spacing: -2px;
+      line-height: 1.12;
+      color: #334b35;
+      margin-bottom: 26px;
+    }
+    .note-page p {
+      font-size: 27px;
+      line-height: 1.5;
+      color: #626b5c;
+    }
+    .note-rule {
+      height: 12px;
+      width: 440px;
+      background: #e6e9df;
+      margin-top: 28px;
+      border-radius: 4px;
+    }
+    .note-rule.short {
+      width: 300px;
+      margin-top: 15px;
+    }
+    .browser-tabs {
+      height: 48px;
+      background: #dfe4d8;
+      display: flex;
+      align-items: end;
+      padding-left: 28px;
+      gap: 18px;
+    }
+    .browser-tabs .dots {
+      align-self: center;
+      margin-right: 25px;
+    }
+    .tab {
+      font-size: 22px;
+      height: 40px;
+      padding: 10px 28px;
+      border-radius: 11px 11px 0 0;
+      color: #47523e;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    .tab.active {
+      background: #f7f8f4;
+    }
+    .tab svg {
+      width: 20px;
+      height: 20px;
+    }
+    .browser-toolbar {
+      height: 60px;
+      background: #f7f8f4;
+      display: flex;
+      align-items: center;
+      padding: 9px 28px;
+      gap: 23px;
+      border-bottom: 1px solid #d7ddcf;
+      font-size: 27px;
+      color: #5c6653;
+    }
+    .address {
+      height: 40px;
+      background: #e8ecdf;
+      border-radius: 20px;
+      flex: 1;
+      padding: 7px 25px;
+      font-size: 22px;
+    }
+    .extension-button {
+      width: 38px;
+      height: 38px;
+      padding: 5px;
+      border-radius: 8px;
+      background: #d8edb4;
+      color: #334b35;
+      margin: 0 12px;
+    }
+    .popup {
+      position: absolute;
+      right: 22px;
+      top: 112px;
+      width: 448px;
+      padding: 28px;
+      background: var(--paper);
+      border: 1px solid #d3d9cb;
+      box-shadow: 0 12px 40px #0003;
+      border-radius: 18px;
+      z-index: 10;
+    }
+    .popup .brand {
+      font-size: 25px;
+      margin-bottom: 26px;
+    }
+    .popup .brand svg {
+      width: 30px;
+      height: 30px;
+    }
+    .popup-card {
+      padding: 25px;
+      background: white;
+      border: 1px solid var(--line);
+      border-radius: 18px;
+      margin-bottom: 18px;
+    }
+    .eyebrow {
+      font-size: 18px;
+      letter-spacing: 1.8px;
+      text-transform: uppercase;
+      color: #626b5c;
+      margin-bottom: 14px;
+    }
+    .popup-card strong {
+      font-size: 30px;
+      letter-spacing: -1px;
+      color: #20251e;
+    }
+    .popup-card p {
+      font-size: 22px;
+      line-height: 1.45;
+      color: #626b5c;
+      margin-top: 14px;
+    }
+    .primary-button {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 12px;
+      background: var(--green);
+      color: white;
+      border-radius: 13px;
+      font-size: 28px;
+      font-weight: 700;
+      height: 66px;
+    }
+    .popup-footer {
+      font-size: 19px;
+      text-align: center;
+      color: #626b5c;
+      margin-top: 19px;
+    }
+    .locked-page {
+      position: absolute;
+      inset: 108px 0 0;
+      background: var(--paper);
+      text-align: center;
+      padding-top: 36px;
+    }
+    .locked-brand {
+      position: absolute;
+      left: 35px;
+      top: 24px;
+      font-size: 22px;
+    }
+    .locked-fp {
+      width: 95px;
+      height: 95px;
+      border-radius: 28px;
+      margin: auto;
+    }
+    .locked-page h3 {
+      font-size: 46px;
+      letter-spacing: -2px;
+      margin-top: 18px;
+      color: #334b35;
+    }
+    .domain-pill {
+      display: inline-block;
+      font-size: 24px;
+      background: #e7ecdf;
+      padding: 9px 24px;
+      border-radius: 24px;
+      margin-top: 14px;
+    }
+    .locked-description {
+      font-size: 24px;
+      color: #626b5c;
+      margin-top: 22px;
+    }
+    .locked-page .primary-button {
+      width: 370px;
+      margin: 24px auto 0;
+      font-size: 25px;
+      height: 56px;
+    }
+    .locked-hint {
+      font-size: 20px;
+      color: #626b5c;
+      margin-top: 14px;
+    }
+    .other-page {
+      position: absolute;
+      inset: 108px 0 0;
+      background: #f4f4f0;
+      padding: 90px 140px;
+    }
+    .other-page h3 {
+      font-size: 62px;
+      color: #334b35;
+      letter-spacing: -2px;
+    }
+    .other-page p {
+      font-size: 30px;
+      color: #626b5c;
+      margin-top: 28px;
+    }
+  </style>
+  <div
+    id="root"
+    data-composition-id="chrome"
+    data-duration="12"
+    data-width="1920"
+    data-height="1080"
+  >
+    <div
+      id="chrome-title-lock"
+      class="clip"
+      data-start="0"
+      data-duration="4.2"
+      data-beat="Lock a website."
+    >
+      <h2 class="heading">Lock a website.</h2>
+      <p class="subheading">
+        Click the OpenLocker icon, then “Lock this site.”
+      </p>
+    </div>
+    <div
+      id="chrome-title-touch"
+      class="clip"
+      data-start="4.2"
+      data-duration="3.5"
+      data-beat="Touch ID is already waiting."
+    >
+      <h2 class="heading">Touch ID is already waiting.</h2>
+      <p class="subheading">
+        The prompt opens automatically. Just use your fingerprint.
+      </p>
+    </div>
+    <div
+      id="chrome-title-back"
+      class="clip"
+      data-start="7.7"
+      data-duration="2.3"
+      data-beat="And you’re back in."
+    >
+      <h2 class="heading">And you’re back in.</h2>
+      <p class="subheading">Your site opens right where you left it.</p>
+    </div>
+    <div
+      id="chrome-title-away"
+      class="clip"
+      data-start="10"
+      data-duration="2"
+      data-beat="Switch tabs. It locks again."
+    >
+      <h2 class="heading">Switch tabs. It locks again.</h2>
+      <p class="subheading">Private until your next touch.</p>
+    </div>
+    <div id="chrome-browser" class="screen">
+      <div class="browser-tabs">
+        <div class="dots"><i></i><i></i><i></i></div>
+        <div id="chrome-tab-main" class="tab active">
+          <span id="chrome-tab-lock" class="small-lock" style="opacity: 0"
+            ><svg viewBox="0 0 32 32" fill="none" aria-hidden="true">
+              <path
+                d="M10 14V9a6 6 0 0 1 12 0v5"
+                stroke="currentColor"
+                stroke-width="2.5"
+              />
+              <rect
+                x="6"
+                y="13"
+                width="20"
+                height="16"
+                rx="5"
+                fill="currentColor"
+              />
+              <path
+                d="M16 19v5"
+                stroke="#d8edb4"
+                stroke-width="2.5"
+                stroke-linecap="round"
+              /></svg></span
+          >Personal notes
+        </div>
+        <div id="chrome-tab-other" class="tab">Another tab</div>
+      </div>
+      <div class="browser-toolbar">
+        <span>‹</span><span>›</span><span>↻</span>
+        <div class="address">example.com</div>
+        <div id="chrome-extension" class="extension-button">
+          <svg viewBox="0 0 32 32" fill="none" aria-hidden="true">
+            <path
+              d="M10 14V9a6 6 0 0 1 12 0v5"
+              stroke="currentColor"
+              stroke-width="2.5"
+            />
+            <rect
+              x="6"
+              y="13"
+              width="20"
+              height="16"
+              rx="5"
+              fill="currentColor"
+            />
+            <path
+              d="M16 19v5"
+              stroke="#d8edb4"
+              stroke-width="2.5"
+              stroke-linecap="round"
+            />
+          </svg>
+        </div>
+        <span>⋮</span>
+      </div>
+      <div class="note-content" id="chrome-note-content">
+        <div class="note-sidebar">
+          <strong>My space</strong>
+          <div class="note-selected">Personal notes</div>
+          <div>Ideas</div>
+          <div>Saved places</div>
+        </div>
+        <div class="note-page">
+          <div class="note-date">YOUR EVERYDAY CORNER</div>
+          <h3>A little space<br />for your thoughts.</h3>
+          <p>Weekend plans, bright ideas,<br />and things just for you.</p>
+          <div class="note-rule"></div>
+          <div class="note-rule short"></div>
+        </div>
+      </div>
+      <div
+        id="chrome-popup-clip"
+        class="clip"
+        data-start="1.3"
+        data-duration="2.6"
+        data-beat="Chrome popup"
+        data-layout-allow-occlusion
+      >
+        <div class="popup" data-layout-allow-overlap id="chrome-popup">
+          <div class="brand">
+            <svg viewBox="0 0 32 32" fill="none" aria-hidden="true">
+              <path
+                d="M10 14V9a6 6 0 0 1 12 0v5"
+                stroke="currentColor"
+                stroke-width="2.5"
+              />
+              <rect
+                x="6"
+                y="13"
+                width="20"
+                height="16"
+                rx="5"
+                fill="currentColor"
+              />
+              <path
+                d="M16 19v5"
+                stroke="#d8edb4"
+                stroke-width="2.5"
+                stroke-linecap="round"
+              /></svg
+            >openlocker
+          </div>
+          <div class="popup-card">
+            <div class="eyebrow">Current website</div>
+            <strong>example.com</strong>
+            <p>Keep this site private with<br />your Mac’s Touch ID.</p>
+          </div>
+          <div id="chrome-lock-button" class="primary-button">
+            Lock this site
+          </div>
+          <div class="popup-footer">On your Mac. In your control.</div>
+        </div>
+      </div>
+      <div
+        id="chrome-lock-clip"
+        class="clip"
+        data-start="3.9"
+        data-duration="3.6"
+        data-layout-allow-occlusion
+      >
+        <div
+          class="locked-page"
+          id="chrome-locked-page"
+          data-layout-allow-overlap
+        >
+          <div class="brand locked-brand">openlocker</div>
+          <div class="fp-box locked-fp">
+            <svg viewBox="0 0 64 64" fill="none" aria-hidden="true">
+              <g
+                stroke="currentColor"
+                stroke-width="2.6"
+                stroke-linecap="round"
+              >
+                <path d="M11 25c2-10 10-17 21-17s20 8 21 19" />
+                <path
+                  d="M7 37v-4m50 2v-2M15 43c3-5 2-10 3-16a14 14 0 0 1 28 1c0 12-2 20-7 28"
+                />
+                <path
+                  d="M9 49c5-6 7-12 6-18M24 49c5-7 5-14 5-20a3 3 0 0 1 6 0c0 10-1 20-8 29M20 56l3-4M39 47c3-8 3-15 3-18a10 10 0 0 0-20 0c0 7 0 12-4 18M49 49c4-9 4-15 4-19"
+                />
+              </g>
+            </svg>
+          </div>
+          <h3>This space is yours.</h3>
+          <div class="domain-pill">example.com</div>
+          <p class="locked-description">A quick touch, and you’re back in.</p>
+          <div class="primary-button">Unlock with Touch ID</div>
+          <p class="locked-hint">Relocks when you switch tabs</p>
+        </div>
+      </div>
+      <div
+        id="chrome-touch-clip"
+        class="clip"
+        data-start="4.7"
+        data-duration="2.65"
+        data-beat="Automatic Chrome Touch ID"
+        data-layout-allow-occlusion
+      >
+        <div id="chrome-touch" class="touch-card" data-layout-allow-overlap>
+          <div class="touch-icon">
+            <svg viewBox="0 0 64 64" fill="none" aria-hidden="true">
+              <g
+                stroke="currentColor"
+                stroke-width="2.6"
+                stroke-linecap="round"
+              >
+                <path d="M11 25c2-10 10-17 21-17s20 8 21 19" />
+                <path
+                  d="M7 37v-4m50 2v-2M15 43c3-5 2-10 3-16a14 14 0 0 1 28 1c0 12-2 20-7 28"
+                />
+                <path
+                  d="M9 49c5-6 7-12 6-18M24 49c5-7 5-14 5-20a3 3 0 0 1 6 0c0 10-1 20-8 29M20 56l3-4M39 47c3-8 3-15 3-18a10 10 0 0 0-20 0c0 7 0 12-4 18M49 49c4-9 4-15 4-19"
+                />
+              </g>
+            </svg>
+          </div>
+          <div class="touch-title">Touch ID</div>
+          <p class="touch-detail">
+            OpenLocker wants to unlock<br />example.com.
+          </p>
+          <div class="touch-cancel">Keep locked</div>
+          <div
+            id="chrome-verified"
+            class="verified"
+            data-layout-allow-overlap
+            style="opacity: 0"
+          >
+            <svg viewBox="0 0 64 64" fill="none">
+              <path
+                d="M13 33l12 12 27-28"
+                stroke="currentColor"
+                stroke-width="5"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+              /></svg
+            ><strong>You’re in.</strong>
+          </div>
+        </div>
+      </div>
+      <div
+        id="chrome-other-clip"
+        class="clip"
+        data-start="10"
+        data-duration="2"
+        data-layout-allow-occlusion
+      >
+        <div class="other-page">
+          <h3>Onto the next thing.</h3>
+          <p>Your other tab is locked again.</p>
+        </div>
+      </div>
+    </div>
+    <div id="chrome-pointer" class="pointer">
+      <svg viewBox="0 0 24 24">
+        <path
+          d="M5 3 L5 19 L9 15 L12 22 L15 20.5 L11.5 14 L18 14 Z"
+          fill="#20251e"
+          stroke="white"
+          stroke-width="1.4"
+          stroke-linejoin="round"
+        />
+      </svg>
+    </div>
+  </div>
+  <script>
+    (() => {
+      const tl = gsap.timeline({ paused: true });
+      tl.fromTo(
+        "#chrome-browser",
+        { y: 24, scale: 0.98 },
+        { y: 0, scale: 1, duration: 0.55, ease: "power3.out" },
+        0,
+      );
+      tl.fromTo(
+        "#chrome-pointer",
+        { x: 1330, y: 610 },
+        { x: 1614, y: 350, duration: 0.75, ease: "power2.inOut" },
+        0.3,
+      );
+      tl.to("#chrome-pointer", { scale: 0.85, duration: 0.1 }, 1.15).to(
+        "#chrome-pointer",
+        { scale: 1, duration: 0.14 },
+        1.25,
+      );
+      tl.fromTo(
+        "#chrome-popup",
+        { opacity: 0, y: -8 },
+        { opacity: 1, y: 0, duration: 0.2, ease: "power2.out" },
+        1.3,
+      );
+      tl.to(
+        "#chrome-pointer",
+        { x: 1430, y: 708, duration: 0.8, ease: "power2.inOut" },
+        2.6,
+      );
+      tl.to("#chrome-pointer", { scale: 0.85, duration: 0.1 }, 3.65).to(
+        "#chrome-pointer",
+        { scale: 1, duration: 0.14 },
+        3.75,
+      );
+      tl.to("#chrome-pointer", { opacity: 0, duration: 0.2 }, 3.9);
+      tl.set("#chrome-note-content", { opacity: 0 }, 3.9);
+      tl.set("#chrome-note-content", { opacity: 1 }, 7.5);
+      tl.set("#chrome-note-content", { opacity: 0 }, 10);
+      tl.fromTo(
+        "#chrome-touch",
+        { opacity: 0, scale: 0.94 },
+        { opacity: 1, scale: 1, duration: 0.28, ease: "power2.out" },
+        4.7,
+      );
+      tl.fromTo(
+        "#chrome-touch .touch-icon",
+        { color: "#334b35" },
+        { color: "#95b567", duration: 0.6, yoyo: true, repeat: 1 },
+        5.2,
+      );
+      tl.fromTo(
+        "#chrome-verified",
+        { opacity: 0 },
+        { opacity: 1, duration: 0.15 },
+        6.6,
+      );
+      tl.to("#chrome-touch", { opacity: 0, scale: 0.97, duration: 0.2 }, 7.1);
+      tl.to("#chrome-locked-page", { opacity: 0, duration: 0.18 }, 7.3);
+      tl.set("#chrome-pointer", { x: 1050, y: 700, opacity: 1 }, 8.8);
+      tl.to(
+        "#chrome-pointer",
+        { x: 730, y: 306, duration: 0.8, ease: "power2.inOut" },
+        9,
+      );
+      tl.to("#chrome-pointer", { scale: 0.85, duration: 0.1 }, 9.85).to(
+        "#chrome-pointer",
+        { scale: 1, duration: 0.14 },
+        9.95,
+      );
+      tl.set("#chrome-tab-lock", { opacity: 1 }, 10);
+      tl.set("#chrome-tab-main", { background: "#dfe4d8" }, 10);
+      tl.set("#chrome-tab-other", { background: "#f7f8f4" }, 10);
+      tl.to("#chrome-pointer", { opacity: 0, duration: 0.2 }, 10.35);
+
+      window.__timelines = window.__timelines || {};
+      window.__timelines["chrome"] = tl;
+    })();
+  </script></template
+>

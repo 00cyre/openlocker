@@ -1,0 +1,10 @@
+{
+  "name": "demo",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "HYPERFRAMES_NO_TELEMETRY=1 npx --yes hyperframes@0.9.19 preview",
+    "check": "HYPERFRAMES_NO_TELEMETRY=1 npx --yes hyperframes@0.9.19 check",
+    "render": "HYPERFRAMES_NO_TELEMETRY=1 npx --yes hyperframes@0.9.19 render --quality delivery --fps 30 --workers 2 -o renders/OpenLocker-demo.mp4"
+  }
+}

@@ -8,6 +8,7 @@
 
 <p align="center">
   <a href="https://github.com/00cyre/openlocker/releases/tag/v0.1.4">Release notes</a> ·
+  <a href="#see-it-in-action">Demo</a> ·
   <a href="#get-started">Get started</a> ·
   <a href="docs/INSTALL.md">Installation help</a> ·
   <a href="docs/DEVELOPMENT.md">Build from source</a>
@@ -28,6 +29,17 @@
 | Protects the whole app, including its other windows. | Protects the domain and its subdomains. |
 | Relocks when you switch apps, hide it, or minimize a window. | Relocks when you switch tabs or Chrome windows. |
 | Touch ID to unlock, stop protecting, or quit OpenLocker. | Touch ID to unlock or remove a protected domain. |
+
+## See it in action
+
+<p align="center">
+  <a href="https://github.com/00cyre/openlocker/releases/download/v0.1.4/OpenLocker-demo.mp4"><img src="docs/assets/demo.gif" alt="OpenLocker demo: protect a website or Mac app, unlock automatically with Touch ID, and relock when you switch away." width="960"></a>
+</p>
+
+<p align="center">
+  A 32-second illustrated walkthrough, made with HyperFrames.<br>
+  <a href="https://github.com/00cyre/openlocker/releases/download/v0.1.4/OpenLocker-demo.mp4">Full video · 1080p</a> · <a href="docs/demo">Edit the HyperFrames project</a>
+</p>
 
 ## Get started
 

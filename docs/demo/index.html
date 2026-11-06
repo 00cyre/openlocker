@@ -1,0 +1,78 @@
+<!doctype html>
+<html
+  lang="en"
+  data-composition-variables='[{"id":"paper","type":"color","label":"Paper","default":"#f5f5f0"},{"id":"green","type":"color","label":"Forest","default":"#334b35"},{"id":"lime","type":"color","label":"Sage","default":"#d8edb4"},{"id":"tagline","type":"string","label":"Closing line","default":"A little more privacy."}]'
+>
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=1920, height=1080" />
+    <title>OpenLocker — Touch to unlock</title>
+    <script src="assets/vendor/gsap.min.js"></script>
+    <link rel="stylesheet" href="assets/demo.css" />
+  </head>
+  <body>
+    <div
+      id="root"
+      data-composition-id="main"
+      data-start="0"
+      data-duration="32"
+      data-width="1920"
+      data-height="1080"
+      data-fps="30"
+    >
+      <div
+        id="intro"
+        class="clip scene"
+        data-composition-id="intro"
+        data-composition-src="compositions/intro.html"
+        data-start="0"
+        data-duration="3"
+        data-track-index="1"
+        data-track-kind="graphics"
+        data-width="1920"
+        data-height="1080"
+      ></div>
+      <div
+        id="chrome"
+        class="clip scene"
+        data-composition-id="chrome"
+        data-composition-src="compositions/chrome.html"
+        data-start="3"
+        data-duration="12"
+        data-track-index="1"
+        data-track-kind="graphics"
+        data-width="1920"
+        data-height="1080"
+      ></div>
+      <div
+        id="mac"
+        class="clip scene"
+        data-composition-id="mac"
+        data-composition-src="compositions/mac.html"
+        data-start="15"
+        data-duration="14"
+        data-track-index="1"
+        data-track-kind="graphics"
+        data-width="1920"
+        data-height="1080"
+      ></div>
+      <div
+        id="outro"
+        class="clip scene"
+        data-composition-id="outro"
+        data-composition-src="compositions/outro.html"
+        data-start="29"
+        data-duration="3"
+        data-track-index="1"
+        data-track-kind="graphics"
+        data-width="1920"
+        data-height="1080"
+      ></div>
+    </div>
+    <script>
+      const tl = gsap.timeline({ paused: true });
+      window.__timelines = window.__timelines || {};
+      window.__timelines.main = tl;
+    </script>
+  </body>
+</html>
