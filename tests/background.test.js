@@ -6,15 +6,17 @@ const base = `chrome-extension://${ID}/`;
 const event = () => { const listeners = []; return { addListener(fn) { listeners.push(fn); }, fire(...args) { for (const fn of listeners) fn(...args); }, listeners }; };
 const copy = value => structuredClone(value);
 // Model the documented Chrome matching defaults at the navigation boundary.
-// In particular, an omitted resource-type filter EXCLUDES main_frame.
+// Omitted OR empty resource-type filters EXCLUDE main_frame. Chromium's
+// ComputeElementTypes uses the default mask when both computed masks are empty.
 // https://developer.chrome.com/docs/extensions/reference/api/declarativeNetRequest#type-RuleCondition
+// https://github.com/chromium/chromium/blob/main/extensions/browser/api/declarative_net_request/indexed_rule.cc
 function networkRule(rules, { url, type = 'main_frame', tabId }) {
   const host = new URL(url).hostname;
   return rules.filter(({ condition: c }) =>
     (!c.tabIds || c.tabIds.includes(tabId)) &&
     (!c.requestDomains || c.requestDomains.some(d => host === d || host.endsWith(`.${d}`))) &&
     (!c.regexFilter || new RegExp(c.regexFilter).test(url)) &&
-    (c.resourceTypes ? c.resourceTypes.includes(type) : c.excludedResourceTypes ? !c.excludedResourceTypes.includes(type) : type !== 'main_frame')
+    (c.resourceTypes?.length ? c.resourceTypes.includes(type) : c.excludedResourceTypes?.length ? !c.excludedResourceTypes.includes(type) : type !== 'main_frame')
   ).sort((a, b) => b.priority - a.priority)[0];
 }
 function storage(initial = {}) {

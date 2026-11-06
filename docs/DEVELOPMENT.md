@@ -10,7 +10,7 @@ cd openlocker
 npm run build:installer
 ```
 
-Open `dist/OpenLocker-0.1.3-macOS.dmg` and run the installer, or build individual pieces:
+Open `dist/OpenLocker-0.1.4-macOS.dmg` and run the installer, or build individual pieces:
 
 ```sh
 npm run build:mac          # Mac menu-bar app in build/desktop/
@@ -61,15 +61,15 @@ Persistent `declarativeNetRequest` rules redirect protected top-level network re
 
 After a matching successful response, the worker checks that the tab and lock generation have not changed. A session allowance is scoped to the tab/domain. Switching tabs or Chrome windows, leaving the domain, restarting Chrome, and locking the screen revoke access. A document-start guard and navigation checks add coverage for cached pages.
 
-Grant rules explicitly set `excludedResourceTypes: []` so they match the main-frame navigation as well as page resources. Chrome excludes `main_frame` when both resource-type filters are omitted; a grant with that omission redirects straight back to the lock page after successful authentication. The worker regression tests model that documented rule-matching default at the navigation boundary.
+Grant rules explicitly list resource types, including `main_frame`, so they match the page navigation as well as page resources. Chrome excludes `main_frame` when both resource-type masks are empty, including an empty exclusion list; such a grant redirects straight back to the lock page after successful authentication. The worker regression tests model Chromium's `ComputeElementTypes` behavior at the navigation boundary.
 
 ## Release
 
 Push a version tag matching `package.json`. The release workflow builds, tests, and publishes these assets only with the pinned persistent signing identity. For local release builds, use `npm run build:release` with the existing signing keychain configured; ad-hoc fallback is rejected:
 
-- `OpenLocker-0.1.3-macOS.dmg`
-- `OpenLocker-0.1.3-macOS.zip`
-- `OpenLocker-0.1.3-source.zip`
+- `OpenLocker-0.1.4-macOS.dmg`
+- `OpenLocker-0.1.4-macOS.zip`
+- `OpenLocker-0.1.4-source.zip`
 - `SHA256SUMS.txt`
 
 The [manual checklist](TESTING.md) covers the hardware and OS integration that automated checks cannot establish. Record unperformed checks in release notes.

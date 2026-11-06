@@ -51,7 +51,7 @@ var error: NSError?
 let available = context.canEvaluatePolicy(.deviceOwnerAuthenticationWithBiometrics, error: &error) && context.biometryType == .touchID
 
 if operation == "status" {
-    reply(["id": id, "available": available, "version": "0.1.3", "supportsUpdates": true, "message": available ? "Touch ID is ready." : message(for: error)])
+    reply(["id": id, "available": available, "version": "0.1.4", "supportsUpdates": true, "message": available ? "Touch ID is ready." : message(for: error)])
 }
 if operation == "update-extension" {
     Task {
