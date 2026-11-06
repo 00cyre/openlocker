@@ -2,13 +2,13 @@
 
 ## Download and open
 
-[Download the macOS installer](https://github.com/00cyre/openlocker/releases/download/v0.1.0/OpenLocker-0.1.0-macOS.dmg), open the disk image, and open **Install OpenLocker.app**. Click **Install OpenLocker**.
+[Download the macOS installer](https://github.com/00cyre/openlocker/releases/download/v0.1.1/OpenLocker-0.1.1-macOS.dmg), open the disk image, and open **Install OpenLocker.app**. Click **Install OpenLocker**.
 
 The universal installer contains Apple Silicon and Intel binaries. You need macOS 13+ and an enrolled Touch ID fingerprint; no compiler, Node, Terminal, or admin password is needed for the downloaded build.
 
 ### macOS blocked the installer
 
-Version 0.1.0 is ad-hoc signed and **not notarized by Apple**. After you try to open it, macOS may require you to approve that specific app in **System Settings → Privacy & Security → Open Anyway**. Follow [Apple's instructions](https://support.apple.com/en-us/102445) only if you trust the download. Do not disable Gatekeeper or remove quarantine attributes. The installer does neither.
+Version 0.1.1 uses a persistent self-signed certificate and is **not notarized by Apple**. After you try to open it, macOS may require you to approve that specific app in **System Settings → Privacy & Security → Open Anyway**. Follow [Apple's instructions](https://support.apple.com/en-us/102445) only if you trust the download. Do not disable Gatekeeper or remove quarantine attributes. The installer does neither.
 
 If macOS reports that a download is damaged or contains malware, stop and obtain a fresh release or build from source; do not treat that warning as the ordinary unidentified-developer prompt.
 
@@ -60,7 +60,7 @@ Quit the menu-bar app using its menu, run the new installer, and reopen OpenLock
 
 ## Troubleshooting
 
-- **Accessibility enabled but OpenLocker still asks:** an ad-hoc rebuild can change the app's code identity while Settings continues to show the old approval as enabled. Quit OpenLocker, select its stale entry in Privacy & Security → Accessibility (called Device Control and Data Access on some macOS versions), remove that entry with **−**, then use **+** to add the exact app you will launch. Enable it and reopen the app. For the installer version, choose `~/Applications/OpenLocker.app`; for a development build, choose that build's `OpenLocker.app`. Merely switching an old entry off and on may preserve its stale identity. This requires your approval because it grants access to control apps.
+- **Accessibility enabled but OpenLocker still asks:** choose **Already enabled? Repair approval** in OpenLocker's setup window (or **Repair approval & open Settings** after an update). This clears only OpenLocker's stale permission; enable it again in Settings. If it is missing from the list, use **+** to add `~/Applications/OpenLocker.app`. The setup window detects access and continues automatically. If macOS refuses the reset, the app shows the manual remove/re-add steps and reveals the exact app in Finder. Approval must still come from you.
 - **An app is briefly visible or not fully covered:** app locking reacts to macOS events; it cannot block launches or guarantee that every window is covered in every OS transition. Do not rely on it for sensitive material on an untrusted Mac.
 - **Touch ID unavailable:** enroll a fingerprint, open your MacBook lid, or use an eligible Touch ID keyboard. After biometric lockout or a restart, unlock macOS with your password first. OpenLocker itself never falls back to a password.
 - **Chrome helper not found:** run the installer again, then use **Check again** in extension settings. Confirm the extension ID is `hnbakoefkkiblpegjcefcilkdplphmbg`.
@@ -71,3 +71,7 @@ Quit the menu-bar app using its menu, run the new installer, and reopen OpenLock
 Turn off **Start at login**, quit OpenLocker, and remove the Chrome extension in `chrome://extensions`. Then remove the menu-bar app and installed files listed above. Remove its Accessibility approval in System Settings if desired.
 
 Developers can run `./scripts/uninstall-macos.sh`; it removes the installed app, helper, extension folder, and native-host registration. It preserves `protected-apps.json` unless you remove that file yourself. Removing only the helper leaves protected Chrome domains locked until the extension is removed.
+
+## Updates and Accessibility
+
+Starting with 0.1.1, published installers reuse one persistent signing certificate. Updates with that same identity should retain Accessibility approval. Migrating from the ad-hoc signed 0.1.0 release requires one renewal; the installer detects it and the app guides you through it. Source builds can still change identity. Never copy a rebuilt app over a running instance.

@@ -1,0 +1,48 @@
+name: Release OpenLocker
+on:
+  push:
+    tags: ['v*']
+permissions:
+  contents: read
+jobs:
+  release:
+    runs-on: macos-latest
+    permissions:
+      contents: write
+    env:
+      OPENLOCKER_RELEASE: '1'
+      OPENLOCKER_SIGNING_KEYCHAIN: ${{ runner.temp }}/openlocker-release.keychain-db
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Verify version and signing configuration
+        env:
+          SIGNING_P12: ${{ secrets.OPENLOCKER_SIGNING_P12 }}
+        run: |
+          test -n "$SIGNING_P12" || { echo 'Persistent release signing identity is missing.'; exit 1; }
+          test "$GITHUB_REF_NAME" = "v$(node -p 'JSON.parse(require("fs").readFileSync("package.json")).version')"
+          OPENLOCKER_ROOT="$PWD"
+          source scripts/signing.sh
+          echo "OPENLOCKER_SIGNING_IDENTITY=$(openlocker_release_fingerprint)" >> "$GITHUB_ENV"
+      - name: Import persistent signing identity
+        env:
+          OPENLOCKER_SIGNING_P12: ${{ secrets.OPENLOCKER_SIGNING_P12 }}
+          OPENLOCKER_SIGNING_PASSWORD: ${{ secrets.OPENLOCKER_SIGNING_PASSWORD }}
+        run: python3 scripts/import-release-signing.py
+      - run: npm test && npm run check && npm run test:mac
+      - run: npm run build:release
+      - run: npm run test:installer && npm run test:native && npm run package
+      - name: Publish tested release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          VERSION="$(node -p 'JSON.parse(require("fs").readFileSync("package.json")).version')"
+          shasum -a 256 "dist/OpenLocker-$VERSION-source.zip" | sed 's|dist/||' >> dist/SHA256SUMS.txt
+          gh release create "$GITHUB_REF_NAME" --verify-tag --title "OpenLocker $VERSION" --notes-file "docs/releases/$VERSION.md" --latest \
+            "dist/OpenLocker-$VERSION-macOS.dmg" "dist/OpenLocker-$VERSION-macOS.zip" \
+            "dist/OpenLocker-$VERSION-source.zip" dist/SHA256SUMS.txt
+      - name: Remove release keychain
+        if: always()
+        run: security delete-keychain "$OPENLOCKER_SIGNING_KEYCHAIN" || true

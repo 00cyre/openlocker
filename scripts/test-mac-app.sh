@@ -7,3 +7,6 @@ xcrun swiftc -swift-version 5 macapp/LockPolicy.swift tests/mac_policy.test.swif
 build/mac-policy-tests
 
 bash scripts/test-activation.sh
+
+xcrun swiftc -swift-version 5 macapp/AccessibilityApproval.swift tests/accessibility_approval.test.swift -o build/accessibility-approval-tests
+build/accessibility-approval-tests

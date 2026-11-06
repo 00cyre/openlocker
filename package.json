@@ -1,6 +1,6 @@
 {
   "name": "openlocker",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "private": true,
   "type": "module",
   "description": "Lock Chrome domains with your MacBook's Touch ID.",
@@ -13,7 +13,8 @@
     "build:mac": "bash scripts/build-mac-app.sh",
     "test:mac": "bash scripts/test-mac-app.sh",
     "build:installer": "bash scripts/build-installer.sh",
-    "test:installer": "bash scripts/test-installer.sh"
+    "test:installer": "bash scripts/test-installer.sh",
+    "build:release": "OPENLOCKER_RELEASE=1 bash scripts/build-installer.sh"
   },
   "engines": {
     "node": ">=22"

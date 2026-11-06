@@ -1,6 +1,8 @@
 #!/bin/bash
 set -euo pipefail
 OPENLOCKER_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+source "$OPENLOCKER_ROOT/scripts/signing.sh"
+openlocker_check_release_config
 if [[ "$(uname -s)" != Darwin ]]; then
   echo 'The Touch ID helper can only be built on macOS.' >&2
   exit 1
@@ -23,5 +25,5 @@ for OPENLOCKER_ARCH in ${OPENLOCKER_ARCHS:-$(uname -m)}; do
   OPENLOCKER_BINARIES+=("$OPENLOCKER_BINARY")
 done
 xcrun lipo -create "${OPENLOCKER_BINARIES[@]}" -output "$OPENLOCKER_APP/Contents/MacOS/OpenLocker"
-codesign --force --sign - --identifier cc.openlocker.touchid "$OPENLOCKER_APP"
+openlocker_sign "$OPENLOCKER_APP" cc.openlocker.touchid
 echo "Built $OPENLOCKER_APP"

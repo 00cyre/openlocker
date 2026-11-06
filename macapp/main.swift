@@ -13,6 +13,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, NSWind
     private var status: NSStatusItem!
     private let menu = NSMenu()
     private let picker = WindowPicker()
+    private let accessibilitySetup = AccessibilitySetup()
     private var watchers: [pid_t: WindowObserver] = [:]
     private var tokens: [NSObjectProtocol] = []
     private var timer: Timer?
@@ -54,7 +55,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, NSWind
         lockAll()
         timer = Timer(timeInterval: 0.15, repeats: true) { [weak self] _ in self?.tick() }
         RunLoop.main.add(timer!, forMode: .common)
-        if !UserDefaults.standard.bool(forKey: "hasOpened") {
+        if accessibilitySetup.needsRenewal {
+            DispatchQueue.main.async { [weak self] in self?.accessibilitySetup.show() }
+        } else if !UserDefaults.standard.bool(forKey: "hasOpened") {
             UserDefaults.standard.set(true, forKey: "hasOpened")
             DispatchQueue.main.async { [weak self] in self?.welcome() }
         }
@@ -186,7 +189,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, NSWind
     }
     @objc private func pickApp() {
         if let storageError { alert("Your protected app list needs attention", storageError); return }
-        guard AXIsProcessTrusted() else { accessibility(); return }
+        guard AXIsProcessTrusted() else {
+            dismissGate()
+            accessibilitySetup.show { [weak self] in self?.pickApp() }
+            return
+        }
         let context = LAContext()
         var biometricError: NSError?
         guard context.canEvaluatePolicy(.deviceOwnerAuthenticationWithBiometrics, error: &biometricError), context.biometryType == .touchID else {
@@ -214,16 +221,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, NSWind
         if policy.apps.isEmpty { NSApp.terminate(nil) } else { showGate(.quit) }
     }
     @objc private func accessibility() {
-        let alert = NSAlert()
-        alert.messageText = "Allow OpenLocker to watch window changes"
-        alert.informativeText = "Accessibility lets OpenLocker detect minimized windows and restore an app after Touch ID. Enable OpenLocker in System Settings → Privacy & Security → Accessibility, then choose Lock an app again. It does not record your screen or keystrokes."
-        alert.addButton(withTitle: "Open Accessibility Settings"); alert.addButton(withTitle: "Not now")
-        NSApp.activate(ignoringOtherApps: true)
-        if alert.runModal() == .alertFirstButtonReturn {
-            let options = [kAXTrustedCheckOptionPrompt.takeUnretainedValue() as String: true] as CFDictionary
-            _ = AXIsProcessTrustedWithOptions(options)
-            NSWorkspace.shared.open(URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility")!)
-        }
+        dismissGate()
+        accessibilitySetup.show()
     }
     @objc private func toggleLogin() {
         do {
@@ -233,13 +232,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, NSWind
         } catch { alert("Couldn't change login settings", "Run OpenLocker from your Applications folder and try again. \(error.localizedDescription)") }
     }
     @objc private func welcome() {
-        alert("Your apps. Your fingerprint.", "Click OpenLocker's menu-bar icon → Lock an app, then click any window to protect its whole app. It relocks when you switch apps, hide it, or minimize a window.\n\nAccessibility and enrolled Touch ID are required. OpenLocker must stay running; enable Start at login if you want it after a restart. This is a convenience lock: macOS may briefly reveal windows before the blur appears, and stopping OpenLocker bypasses it.\n\nVersion 0.1.0 · Local only · No accounts")
+        alert("Your apps. Your fingerprint.", "Click OpenLocker's menu-bar icon → Lock an app, then click any window to protect its whole app. It relocks when you switch apps, hide it, or minimize a window.\n\nAccessibility and enrolled Touch ID are required. OpenLocker must stay running; enable Start at login if you want it after a restart. This is a convenience lock: macOS may briefly reveal windows before the blur appears, and stopping OpenLocker bypasses it.\n\nVersion 0.1.1 · Local only · No accounts")
     }
     private func alert(_ title: String, _ message: String) {
         let alert = NSAlert(); alert.messageText = title; alert.informativeText = message
         NSApp.activate(ignoringOtherApps: true); alert.runModal()
     }
     private func showGate(_ requested: GateAction) {
+        guard !accessibilitySetup.isVisible else { return }
         if action == requested, let gate, gate.isVisible {
             if authentication == nil { gate.makeKeyAndOrderFront(nil); NSApp.activate(ignoringOtherApps: true) }
             return
@@ -291,7 +291,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, NSWind
     @objc private func authenticate() {
         guard authentication == nil, let requested = action else { return }
         if case .unlock = requested, !AXIsProcessTrusted() {
-            messageLabel?.stringValue = "Enable Accessibility from the menu before unlocking."; return
+            dismissGate()
+            accessibilitySetup.show { [weak self] in self?.showGate(requested) }
+            return
         }
         let context = LAContext()
         context.localizedFallbackTitle = ""; context.localizedCancelTitle = "Keep locked"

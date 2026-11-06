@@ -1,6 +1,8 @@
 #!/bin/bash
 set -euo pipefail
 OPENLOCKER_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+source "$OPENLOCKER_ROOT/scripts/signing.sh"
+openlocker_check_release_config
 cd "$OPENLOCKER_ROOT"
 if [[ "$(uname -s)" != Darwin ]]; then echo 'Build the installer on macOS.' >&2; exit 1; fi
 OPENLOCKER_STAGE="$OPENLOCKER_ROOT/build/installer"
@@ -10,9 +12,9 @@ mkdir -p "$OPENLOCKER_APP/Contents/MacOS" "$OPENLOCKER_APP/Contents/Resources/Pa
 OPENLOCKER_ARCHS="arm64 x86_64" bash scripts/build-native.sh
 OPENLOCKER_ARCHS="arm64 x86_64" OPENLOCKER_DESKTOP_DEST="$OPENLOCKER_ROOT/build/release-desktop/OpenLocker.app" bash scripts/build-mac-app.sh
 for OPENLOCKER_ARCH in arm64 x86_64; do
-  xcrun swiftc -O -swift-version 5 -framework AppKit -framework CryptoKit \
+  xcrun swiftc -O -swift-version 5 -framework AppKit -framework CryptoKit -framework Security \
     -target "$OPENLOCKER_ARCH-apple-macosx13.0" \
-    native/Config.swift installer/InstallerEngine.swift installer/main.swift \
+    native/Config.swift shared/CodeIdentity.swift installer/InstallerEngine.swift installer/main.swift \
     -o "$OPENLOCKER_ROOT/build/InstallOpenLocker-$OPENLOCKER_ARCH"
 done
 xcrun lipo -create build/InstallOpenLocker-arm64 build/InstallOpenLocker-x86_64 -output "$OPENLOCKER_APP/Contents/MacOS/InstallOpenLocker"
@@ -25,12 +27,15 @@ ditto build/OpenLocker.app "$OPENLOCKER_APP/Contents/Resources/Payload/OpenLocke
 rm -rf "$OPENLOCKER_APP/Contents/Resources/Payload/Desktop"
 mkdir -p "$OPENLOCKER_APP/Contents/Resources/Payload/Desktop"
 ditto build/release-desktop/OpenLocker.app "$OPENLOCKER_APP/Contents/Resources/Payload/Desktop/OpenLocker.app"
-codesign --force --sign - --identifier cc.openlocker.installer "$OPENLOCKER_APP"
+openlocker_sign "$OPENLOCKER_APP" cc.openlocker.installer
 codesign --verify --deep --strict "$OPENLOCKER_APP"
 cp installer/Start-Here.html "$OPENLOCKER_STAGE/Start Here.html"
-hdiutil create -ov -format UDZO -volname 'OpenLocker 0.1.0' \
-  -srcfolder "$OPENLOCKER_STAGE" "$OPENLOCKER_ROOT/dist/OpenLocker-0.1.0-macOS.dmg"
+hdiutil create -ov -format UDZO -volname 'OpenLocker 0.1.1' \
+  -srcfolder "$OPENLOCKER_STAGE" "$OPENLOCKER_ROOT/dist/OpenLocker-0.1.1-macOS.dmg"
+if [[ "${OPENLOCKER_RELEASE:-0}" == 1 ]]; then
+  openlocker_sign "$OPENLOCKER_ROOT/dist/OpenLocker-0.1.1-macOS.dmg" cc.openlocker.disk
+fi
 # Useful for environments that prefer extracting a zip rather than mounting a disk.
-ditto -c -k --sequesterRsrc --keepParent "$OPENLOCKER_APP" "$OPENLOCKER_ROOT/dist/OpenLocker-0.1.0-macOS.zip"
-shasum -a 256 dist/OpenLocker-0.1.0-macOS.dmg dist/OpenLocker-0.1.0-macOS.zip | sed 's|dist/||' > dist/SHA256SUMS.txt
-printf '\nInstaller ready: dist/OpenLocker-0.1.0-macOS.dmg\n'
+ditto -c -k --sequesterRsrc --keepParent "$OPENLOCKER_APP" "$OPENLOCKER_ROOT/dist/OpenLocker-0.1.1-macOS.zip"
+shasum -a 256 dist/OpenLocker-0.1.1-macOS.dmg dist/OpenLocker-0.1.1-macOS.zip | sed 's|dist/||' > dist/SHA256SUMS.txt
+printf '\nInstaller ready: dist/OpenLocker-0.1.1-macOS.dmg\n'

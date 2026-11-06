@@ -52,3 +52,10 @@ Current automated additions: universal Apple Silicon/Intel builds, code-signatur
 `bash scripts/test-activation.sh` replays the real activation-effects path, including macOS falling back to the previous app when the foreground app hides. The original implementation fails because that fallback dismisses the unlock modal. The overlay implementation keeps the prompt visible and the target covered.
 
 `tests/shield_harness.swift` is a separate manual UI fixture using the production `WindowShield`. Its disposable app contains no real user data, and the fixture cannot authenticate. Check that clicking the blur opens its modal and typing does not change the protected text field. The fixture is never included in the compiled installer.
+
+## Accessibility update regression
+
+- Install 0.1.0, approve Accessibility, protect an app, quit, then install 0.1.1. Confirm the installer indicates renewal, the setup window offers Repair approval, Settings grants access to the exact installed copy, and the pending action resumes without repeated alerts. Confirm the protected list survives.
+- Approve a 0.1.1 stable-signed release, then install a changed build signed by the same certificate. Confirm no renewal is requested and `AXIsProcessTrusted()` stays true. Test on Apple Silicon and Intel.
+- Decline access, close/reopen setup, and retry. No background permission resets may occur. Cancel Touch ID and confirm the protected app remains covered.
+- Automatic coverage: the real installer + Security.framework test rejects the old requirement for a changed ad-hoc identity, accepts it for a changed stable-signed binary, and tests preservation of app settings. Approval state tests check reset failure, retry, already-trusted protection, and repeated polling/clicks. Real macOS permission dialogs and physical Touch ID remain manual checks.

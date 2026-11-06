@@ -51,7 +51,7 @@ var error: NSError?
 let available = context.canEvaluatePolicy(.deviceOwnerAuthenticationWithBiometrics, error: &error) && context.biometryType == .touchID
 
 if operation == "status" {
-    reply(["id": id, "available": available, "version": "0.1.0", "message": available ? "Touch ID is ready." : message(for: error)])
+    reply(["id": id, "available": available, "version": "0.1.1", "message": available ? "Touch ID is ready." : message(for: error)])
 }
 guard operation == "authenticate" else { reply(["id": id, "success": false, "message": "Unsupported operation."]) }
 guard let domain = request["domain"] as? String, domain.count <= 253,

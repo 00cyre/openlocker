@@ -66,7 +66,7 @@ final class InstallerDelegate: NSObject, NSApplicationDelegate {
         text("✓  Apple Silicon + Intel\n✓  No Terminal, Xcode, or admin password\n✓  No accounts or cloud")
         button("Install OpenLocker", action: #selector(install), primary: true)
         text("Mac app locking needs Accessibility permission. Chrome will ask you to load the extension once. We'll guide you through both.", size: 12)
-        text("Version 0.1.0 · macOS 13+ · Google Chrome 120+", size: 11)
+        text("Version 0.1.1 · macOS 13+ · Google Chrome 120+", size: 11)
     }
     @objc private func install() {
         if !NSRunningApplication.runningApplications(withBundleIdentifier: "cc.openlocker.mac").isEmpty {
@@ -89,7 +89,9 @@ final class InstallerDelegate: NSObject, NSApplicationDelegate {
     private func showFinish() {
         reset(); brand()
         text("Installed. Make it yours.", size: 30, weight: .semibold, color: green)
-        text("Mac apps: open OpenLocker, then click its menu-bar icon → Lock an app. Enable Accessibility when asked.", size: 14)
+        text(result?.needsAccessibilityRenewal == true
+             ? "This update needs fresh Accessibility approval. Open OpenLocker, click Repair approval, then enable it in System Settings. Your protected apps are preserved."
+             : "Mac apps: open OpenLocker, then click its menu-bar icon → Lock an app. Enable Accessibility when asked.", size: 14)
         button("Open OpenLocker", action: #selector(openDesktop), primary: true)
         text("Chrome websites", size: 17, weight: .semibold, color: green)
         text("1. Open chrome://extensions and turn on Developer mode.\n2. Click Load unpacked.\n3. Press ⇧⌘G, paste the copied folder path, and click Select.", size: 15)

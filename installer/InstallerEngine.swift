@@ -6,6 +6,7 @@ struct InstallResult {
     let helperExecutable: URL
     let manifest: URL
     let desktopApp: URL
+    let needsAccessibilityRenewal: Bool
 }
 
 struct InstallFailure: LocalizedError {
@@ -25,7 +26,7 @@ struct InstallerEngine {
         let manifestData = try Data(contentsOf: extensionSource.appendingPathComponent("manifest.json"))
         guard let manifest = try JSONSerialization.jsonObject(with: manifestData) as? [String: Any],
               let key = manifest["key"] as? String, let publicKey = Data(base64Encoded: key),
-              let version = manifest["version"] as? String, version == "0.1.0" else {
+              let version = manifest["version"] as? String, version == "0.1.1" else {
             throw InstallFailure(message: "The bundled extension is incomplete. Download OpenLocker again.")
         }
         let extensionID = SHA256.hash(data: publicKey).prefix(16).flatMap { byte in
@@ -42,6 +43,14 @@ struct InstallerEngine {
         let hosts = support.appendingPathComponent("Google/Chrome/NativeMessagingHosts")
         let applications = home.appendingPathComponent("Applications")
         let desktopApp = applications.appendingPathComponent("OpenLocker.app")
+        try CodeIdentity.validate(desktopSource)
+        try CodeIdentity.validate(helperSource)
+        let renewalFile = destination.appendingPathComponent("accessibility-renewal-required")
+        let identityChanged: Bool
+        if fm.fileExists(atPath: desktopApp.path) {
+            identityChanged = (try? CodeIdentity.requirement(for: desktopApp))
+                .map { !CodeIdentity.satisfies($0, app: desktopSource) } ?? true
+        } else { identityChanged = false }
         try fm.createDirectory(at: destination, withIntermediateDirectories: true, attributes: [.posixPermissions: 0o700])
         try fm.createDirectory(at: hosts, withIntermediateDirectories: true, attributes: nil)
         try fm.createDirectory(at: applications, withIntermediateDirectories: true, attributes: nil)
@@ -90,6 +99,13 @@ struct InstallerEngine {
             }
             try encoded.write(to: hostManifest, options: [.atomic])
             try fm.setAttributes([.posixPermissions: 0o600], ofItemAtPath: hostManifest.path)
+            // Commit this only after all payloads have installed successfully.
+            // The app offers an explicit reset of its own old grant, then waits
+            // for macOS approval. Never treat an enabled Settings row as trust.
+            if identityChanged {
+                try Data("OpenLocker changed signing identity. Renew Accessibility approval.\n".utf8)
+                    .write(to: renewalFile, options: [.atomic])
+            }
         } catch {
             if desktopInstalled { try? fm.removeItem(at: desktopApp) }
             if desktopBackedUp { try? fm.moveItem(at: stage.appendingPathComponent("backup-desktop.app"), to: desktopApp) }
@@ -101,6 +117,6 @@ struct InstallerEngine {
             else { try? fm.removeItem(at: hostManifest) }
             throw error
         }
-        return InstallResult(extensionDirectory: destination.appendingPathComponent("extension"), helperExecutable: helper, manifest: hostManifest, desktopApp: desktopApp)
+        return InstallResult(extensionDirectory: destination.appendingPathComponent("extension"), helperExecutable: helper, manifest: hostManifest, desktopApp: desktopApp, needsAccessibilityRenewal: fm.fileExists(atPath: renewalFile.path))
     }
 }

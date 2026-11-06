@@ -1,6 +1,8 @@
 #!/bin/bash
 set -euo pipefail
 OPENLOCKER_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+source "$OPENLOCKER_ROOT/scripts/signing.sh"
+openlocker_check_release_config
 cd "$OPENLOCKER_ROOT"
 OPENLOCKER_MAC_APP="${OPENLOCKER_DESKTOP_DEST:-$OPENLOCKER_ROOT/build/desktop/OpenLocker.app}"
 # An ad-hoc signature identifies the exact binary. Replacing a live app can
@@ -19,12 +21,12 @@ for OPENLOCKER_ARCH in ${OPENLOCKER_ARCHS:-$(uname -m)}; do
   OPENLOCKER_BINARY="$OPENLOCKER_ROOT/build/OpenLockerMac-$OPENLOCKER_ARCH"
   xcrun swiftc -O -swift-version 5 -framework AppKit -framework ApplicationServices -framework LocalAuthentication -framework ServiceManagement \
     -target "$OPENLOCKER_ARCH-apple-macosx13.0" \
-    macapp/ActivationFlow.swift macapp/LockPolicy.swift macapp/WindowShield.swift macapp/WindowObserver.swift macapp/WindowPicker.swift macapp/main.swift \
+    macapp/AccessibilityApproval.swift macapp/AccessibilitySetup.swift macapp/ActivationFlow.swift macapp/LockPolicy.swift macapp/WindowShield.swift macapp/WindowObserver.swift macapp/WindowPicker.swift macapp/main.swift \
     -o "$OPENLOCKER_BINARY"
   OPENLOCKER_MAC_BINARIES+=("$OPENLOCKER_BINARY")
 done
 xcrun lipo -create "${OPENLOCKER_MAC_BINARIES[@]}" -output "$OPENLOCKER_MAC_APP/Contents/MacOS/OpenLockerMac"
 cp macapp/Info.plist "$OPENLOCKER_MAC_APP/Contents/Info.plist"
 cp installer/AppIcon.icns "$OPENLOCKER_MAC_APP/Contents/Resources/AppIcon.icns"
-codesign --force --sign - --identifier cc.openlocker.mac "$OPENLOCKER_MAC_APP"
+openlocker_sign "$OPENLOCKER_MAC_APP" cc.openlocker.mac
 echo "Built $OPENLOCKER_MAC_APP"

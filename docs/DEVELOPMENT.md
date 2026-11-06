@@ -10,7 +10,7 @@ cd openlocker
 npm run build:installer
 ```
 
-Open `dist/OpenLocker-0.1.0-macOS.dmg` and run the installer, or build individual pieces:
+Open `dist/OpenLocker-0.1.1-macOS.dmg` and run the installer, or build individual pieces:
 
 ```sh
 npm run build:mac          # Mac menu-bar app in build/desktop/
@@ -43,11 +43,11 @@ npm run test:native
 npm run package
 ```
 
-The installer build cross-compiles `arm64` and `x86_64`, merges each executable with `lipo`, and ad-hoc signs the resulting bundles. The DMG and ZIP contain the compiled app, extension, and native helper; they do not download code at install time. Installer tests use temporary home-directory fixtures and do not install to the developer's account.
+The installer build cross-compiles `arm64` and `x86_64`, merges each executable with `lipo`, and signs the resulting bundles. Local/CI development builds are ad-hoc unless a signing identity is supplied. The DMG and ZIP contain the compiled app, extension, and native helper; they do not download code at install time. Installer tests use temporary home-directory fixtures and do not install to the developer's account.
 
 Do not rebuild the copy currently running. `build-mac-app.sh` refuses that destination, because replacing an ad-hoc signed binary can invalidate Accessibility approval even while Settings displays it as enabled. Use a separate `OPENLOCKER_DESKTOP_DEST` for development builds, or quit before rebuilding and renew approval if needed. Installer builds already use a separate `build/release-desktop` destination.
 
-GitHub CI builds both the Chrome code and the universal macOS artifacts. Builds are ad-hoc signed, not notarized. A production distribution should use a Developer ID certificate, hardened runtime where appropriate, and Apple's notarization service before claiming a smooth Gatekeeper launch.
+GitHub checks build both the Chrome code and universal macOS development artifacts. The separate tag-triggered release workflow imports the persistent certificate from encrypted Actions secrets, builds with hardened runtime, checks the pinned signer, tests identity continuity, then publishes. No private key is in the repository. These releases are self-signed, not Apple-notarized; first-launch Gatekeeper approval can still be necessary. See [release identity](../signing/README.md).
 
 ## Mac app flow
 
@@ -63,13 +63,17 @@ After a matching successful response, the worker checks that the tab and lock ge
 
 ## Release
 
-Build the macOS artifacts on macOS, run all checks, and create a source ZIP. Publish a tag pointing to the tested commit with these assets:
+Push a version tag matching `package.json`. The release workflow builds, tests, and publishes these assets only with the pinned persistent signing identity. For local release builds, use `npm run build:release` with the existing signing keychain configured; ad-hoc fallback is rejected:
 
-- `OpenLocker-0.1.0-macOS.dmg`
-- `OpenLocker-0.1.0-macOS.zip`
-- `OpenLocker-0.1.0-source.zip`
+- `OpenLocker-0.1.1-macOS.dmg`
+- `OpenLocker-0.1.1-macOS.zip`
+- `OpenLocker-0.1.1-source.zip`
 - `SHA256SUMS.txt`
 
 The [manual checklist](TESTING.md) covers the hardware and OS integration that automated checks cannot establish. Record unperformed checks in release notes.
 
 Official references: [Chrome native messaging](https://developer.chrome.com/docs/extensions/develop/concepts/native-messaging), [Chrome network rules](https://developer.chrome.com/docs/extensions/reference/api/declarativeNetRequest), [Apple biometric-only authentication](https://developer.apple.com/documentation/localauthentication/lapolicy/deviceownerauthenticationwithbiometrics), and [native behind-window blur](https://developer.apple.com/documentation/appkit/nsvisualeffectview/blendingmode-swift.enum/behindwindow).
+
+## Accessibility renewal
+
+`CodeIdentity` validates replacements against the installed app's designated requirement using Security.framework. Only an identity-changing update writes a pending-renewal marker, inside the install transaction. The app's single setup window polls actual `AXIsProcessTrusted()`, offers an explicit app-scoped `tccutil reset Accessibility cc.openlocker.mac`, and resumes the pending action when trust is granted. The reset never grants access, never runs merely because polling returns false, and never runs again after a successful reset in the session. Existing 0.1.0 installs migrate once. A previously approved source build is also detected via the saved approval state.
