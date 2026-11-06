@@ -1,105 +1,84 @@
-# OpenLocker
+<p align="center">
+  <img src="docs/assets/hero.svg" alt="OpenLocker — private apps, private tabs. Touch ID for your Mac and Chrome." width="100%">
+</p>
 
-**A little privacy, at your fingertips.** A Chrome extension that locks websites behind your MacBook's Touch ID.
+<p align="center">
+  <a href="https://github.com/00cyre/openlocker/releases/latest/download/OpenLocker-0.1.0-macOS.dmg"><img src="docs/assets/download.svg" alt="Download OpenLocker for macOS — Apple Silicon and Intel" width="310"></a>
+</p>
 
-Open a website → click **OpenLocker** → **Lock this site**. When you return, click **Unlock with Touch ID** and touch the sensor. No accounts, cloud service, subscriptions, or passwords to remember.
+<p align="center">
+  <a href="https://github.com/00cyre/openlocker/releases/tag/v0.1.0">Release notes</a> ·
+  <a href="#get-started">Get started</a> ·
+  <a href="docs/INSTALL.md">Installation help</a> ·
+  <a href="docs/DEVELOPMENT.md">Build from source</a>
+</p>
 
-## How it feels
+<p align="center">
+  <a href="https://github.com/00cyre/openlocker/actions/workflows/ci.yml"><img src="https://github.com/00cyre/openlocker/actions/workflows/ci.yml/badge.svg" alt="Build and tests"></a>
+  <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-526943" alt="MIT license"></a>
+  <img src="https://img.shields.io/badge/macOS-13%2B-334b35" alt="macOS 13 or later">
+  <img src="https://img.shields.io/badge/Chrome-120%2B-334b35" alt="Chrome 120 or later">
+</p>
 
-- **One click to protect a domain.** Includes its subdomains; `www.example.com` becomes `example.com`. Other subdomains stay specific: locking `mail.example.com` does not lock all of `example.com`.
-- **One fingerprint to get back in.** macOS performs biometric-only authentication. A cancelled or failed prompt leaves the site locked. No password or Apple Watch fallback inside OpenLocker.
-- **Automatic relocking.** The unlock belongs to one tab. Switching tabs or Chrome windows, leaving the domain, restarting Chrome, or locking your Mac relocks it. Switching to another app alone does not relock it.
-- **Simple management.** Add domains, lock everything now, or remove a domain after Touch ID verification.
-- **Local by design.** Your fingerprint never reaches the extension or the helper.
+**OpenLocker puts your Mac apps and Chrome websites behind Touch ID.** Pick what you want to keep private, then use your fingerprint to get back in. No account. No cloud. No password to remember.
 
-## Install on your Mac
+| On your Mac | In Chrome |
+| :--- | :--- |
+| Click the menu-bar icon → **Lock an app** → click a window. | Click the toolbar icon → **Lock this site**. |
+| Protects the whole app, including its other windows. | Protects the domain and its subdomains. |
+| Relocks when you switch apps, hide it, or minimize a window. | Relocks when you switch tabs or Chrome windows. |
+| Touch ID to unlock, stop protecting, or quit OpenLocker. | Touch ID to unlock or remove a protected domain. |
 
-Requirements: **macOS 13+**, Google Chrome **120+**, and enrolled Touch ID. The local helper build needs Apple's Command Line Tools (`xcode-select --install` if missing). Node is only needed for development tests.
+## Get started
 
-This is a source release, not a Chrome Web Store listing or a notarized installer. Review the code before loading it.
+**macOS 13+ · enrolled Touch ID · Apple Silicon or Intel**<br>
+Chrome 120+ is needed only for website locking.
 
-1. Clone or download this repository:
+1. **[Download OpenLocker](https://github.com/00cyre/openlocker/releases/latest/download/OpenLocker-0.1.0-macOS.dmg)**, open the disk, and launch **Install OpenLocker**.
+2. Click **Install OpenLocker**. The Mac app, Chrome extension, and Touch ID helper are installed for your user. No Terminal, Xcode, or admin password.
+3. Choose your setup:
 
-   ```sh
-   git clone https://github.com/00cyre/openlocker.git
-   cd openlocker
-   ```
+   - **Mac apps:** click **Open OpenLocker**. Use its menu-bar icon, choose **Lock an app**, and allow Accessibility when asked. Click a window to protect its app.
+   - **Chrome websites:** click **Copy folder path & open Chrome**. Turn on **Developer mode**, click **Load unpacked**, then press **⇧⌘G** and paste the copied path. Pin the extension.
 
-2. Open `chrome://extensions`, turn on **Developer mode**, click **Load unpacked**, and select the repository's **extension** folder. Its ID should be `hnbakoefkkiblpegjcefcilkdplphmbg`.
+> **About the one-click installer:** the button above downloads a ready-to-run installer. It installs all local components with one button. macOS still asks you to approve Accessibility, and Chrome requires the final **Load unpacked** step until a Chrome Web Store version exists.
+>
+> **First release:** `0.1.0` is ad-hoc signed, not Apple-notarized. macOS may block its first launch. See [installation help](docs/INSTALL.md#macos-blocked-the-installer) for Apple's approval steps; the installer never disables Gatekeeper.
 
-3. Install the Touch ID helper once, from the repository folder:
+Prefer a ZIP? [Download the Mac installer ZIP](https://github.com/00cyre/openlocker/releases/download/v0.1.0/OpenLocker-0.1.0-macOS.zip). [Checksums](https://github.com/00cyre/openlocker/releases/download/v0.1.0/SHA256SUMS.txt) are included with the release.
 
-   ```sh
-   ./scripts/install-macos.sh
-   ```
+## Quietly local
 
-   Return to OpenLocker settings and click **Check again**. Pin OpenLocker in Chrome's Extensions menu.
+- **Your fingerprint stays with macOS.** OpenLocker receives only the authentication result. No password or Apple Watch fallback.
+- **Your choices stay on your Mac.** Protected apps and domains are stored locally. No telemetry, accounts, remote code, or subscriptions.
+- **No destructive locking.** Mac apps stay in place behind input-blocking blur panels. Chrome locking replaces the open page, so save browser drafts first.
+- **You're in control.** Lock everything immediately from either menu. Mac app locking runs while the menu-bar app is open; **Start at login** is optional.
 
-That's it. Visit a website, click the toolbar icon, then **Lock this site**.
+## What this protects
 
-The installer compiles the Swift source locally, ad-hoc signs the resulting app, and registers it for your user only. It does not need `sudo`, download a helper executable, start a server, or create a background daemon. Chrome launches the helper only when checking availability or requesting authentication. The manifest includes a public development key to keep the unpacked extension ID stable across folders and machines. No signing private key is included.
+OpenLocker is a **convenience privacy lock**, not an OS security boundary. The Mac app reacts to window/focus events, so a window can briefly appear before its blur panel is positioned. Mission Control, app-switcher previews, notifications, and other macOS surfaces may show app content. Unusual windows, Spaces, and full-screen transitions may not be covered reliably.
 
-## Privacy & scope
+Someone who can stop OpenLocker, disable the Chrome extension, edit local files, or use another browser/profile can bypass it. It does not encrypt app data or prevent app launches. Any fingerprint enrolled for your macOS user can authenticate.
 
-OpenLocker is a **privacy convenience inside one Chrome profile**, not an OS security boundary. Anyone able to disable/uninstall extensions, modify local files, use another profile/browser, or control your Mac can bypass it. It does not encrypt website data, erase history, hide titles in Chrome history, or log you out of websites. All fingerprints enrolled for the current macOS user can authenticate.
+Chrome's internal pages, the Web Store, incognito, and other profiles are outside the extension's scope. Locked domains may also block embeds in other tabs. [Full privacy details](PRIVACY.md) · [Security model](SECURITY.md)
 
-- Locking navigates matching open tabs to a local lock screen. **Save drafts first**: unsaved forms and in-memory app state can be lost. Normal URL paths and queries are restored after unlocking; URL fragments may not survive Chrome's network-level redirects. POST requests cannot be replayed.
-- Protected domains are also blocked as embedded resources in other tabs. This can affect embeds or shared services. Unlocking a tab permits that domain and its subdomains only in that tab.
-- Chrome's internal pages, the Chrome Web Store, other profiles, incognito, native apps, downloaded files, and browser UI are outside the scope. IPv6 literal addresses are not supported. Up to 500 domains can be configured.
-- Persistent Chrome network rules perform the main blocking. A document-start guard and navigation checks also cover cached/service-worker pages. Browser-protected surfaces, developer tools, malicious page scripts, and extension tampering are not security boundaries this project can enforce.
-- Local storage contains your protected domain list. Temporary tab grants stay in session storage and session rules. The locked tab URL includes its original destination. There is no analytics, remote code, or account connection.
+## Under the hood
 
-See [PRIVACY.md](PRIVACY.md) and [SECURITY.md](SECURITY.md).
-
-## Development
-
-There are no npm dependencies or extension build steps.
-
-```sh
-npm test                 # Domain logic and service-worker behavior with a mocked Chrome API
-npm run check            # Manifest, syntax, page assets, and native origin consistency
-npm run build:native     # Compile and ad-hoc sign the macOS helper
-npm run test:native      # Native protocol validation; never prompts for a fingerprint
-npm run package          # Source distribution in dist/
-```
-
-The automated tests cover domain boundaries, spoofed messages, missing/cancelled authentication, request-ID mismatch, concurrent updates, relocking, and successful authentication arriving after a tab change or explicit lock. Mocked Chrome tests do not prove Chrome API integration. Follow [the manual test checklist](docs/TESTING.md) on a real Mac before releasing. A physical fingerprint test cannot be completed by automation.
-
-```text
-extension/   Manifest V3 extension; plain HTML, CSS, and JavaScript
-native/      Swift LocalAuthentication helper
-scripts/     Local build, install, uninstall, validation, and packaging
-tests/      Node behavior tests and Python native-protocol tests
-```
-
-### How it works
-
-1. Persistent `declarativeNetRequest` rules redirect locked main-frame requests to the extension and block protected subresources. Domain patterns use Chrome's domain matching rather than unsafe substring matches.
-2. An unlock request is accepted only from the extension's own top-level lock page. The service worker sends a fresh request ID and domain to the allowlisted native host.
-3. Swift calls `LAContext.evaluatePolicy(.deviceOwnerAuthenticationWithBiometrics)`, with fallback hidden and reuse disabled. The host validates its caller origin and bounds incoming messages.
-4. After a matching successful response, the worker rechecks the tab and lock generation. It installs a session allow rule scoped to that tab/domain and navigates back.
-5. Relocking removes the session allowance and replaces any exposed protected pages. Mutating operations are serialized to avoid dropping simultaneous domain edits.
-
-Official references: [Chrome native messaging](https://developer.chrome.com/docs/extensions/develop/concepts/native-messaging), [Chrome declarative network rules](https://developer.chrome.com/docs/extensions/reference/api/declarativeNetRequest), and [Apple biometric-only authentication](https://developer.apple.com/documentation/localauthentication/lapolicy/deviceownerauthenticationwithbiometrics).
-
-### Troubleshooting
-
-- **Helper not found:** run the installer and click **Check again**. It registers Google Chrome's default macOS user-data location; custom `--user-data-dir` locations and other Chromium browsers need their own native-host registration.
-- **Unexpected extension ID:** select `extension/` directly, preserve `manifest.json`'s public key, and reload. A different Chrome Web Store identity requires updating the key, `extension-id.txt`, and `native/Config.swift` together.
-- **Touch ID unavailable:** enroll a fingerprint, open the MacBook lid, or use an eligible Touch ID keyboard. If macOS has locked biometry after failed attempts/restart, unlock your Mac with its password before trying Touch ID again. OpenLocker itself never falls back to a password.
-- **A page stays covered:** restore/reload the extension and refresh the tab. The guard keeps pages covered if the worker cannot answer.
-- **Updating:** pull changes, rerun the helper installer if native code changed, and click **Reload** on the extension card.
-
-### Uninstall
-
-Remove OpenLocker in `chrome://extensions` to remove domain rules, then run:
+Plain JavaScript for Chrome. Swift and AppKit on the Mac. Apple's `LocalAuthentication` for Touch ID. Zero npm dependencies.
 
 ```sh
-./scripts/uninstall-macos.sh
+npm test                  # Chrome policy and worker tests
+npm run check             # Manifest, syntax, and asset validation
+npm run build:installer   # Universal Mac app + helper + graphical installer
+npm run test:mac          # Mac lock policy, relocking, and stale-auth tests
+npm run test:installer    # Isolated install/upgrade and artifact checks
+npm run test:native       # Native messaging protocol checks
 ```
 
-Removing only the helper leaves the extension's sites locked. Refresh any previously covered tabs after removing the extension.
+[Developer guide](docs/DEVELOPMENT.md) · [Manual acceptance tests](docs/TESTING.md) · [Report an issue](https://github.com/00cyre/openlocker/issues)
 
-## License
+Automated checks validate the lock policies, protocol, installation, and builds. Physical fingerprint authentication and real-app minimize/focus behavior still require the manual acceptance tests.
 
-MIT. Built for people who want a little more privacy on their own Mac.
+---
+
+<p align="center">Made for a little more privacy on your own Mac.<br><a href="LICENSE">MIT licensed</a> · <a href="https://github.com/00cyre">00cyre</a></p>

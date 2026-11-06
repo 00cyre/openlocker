@@ -3,16 +3,16 @@ set -euo pipefail
 OPENLOCKER_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$OPENLOCKER_ROOT"
 mkdir -p dist
-# Source distribution: native binaries are built locally, never silently downloaded.
+# Separate source distribution; compiled installers are built by build-installer.sh.
 python3 - <<'PY'
 import pathlib, zipfile
 root = pathlib.Path('.')
-with zipfile.ZipFile('dist/openlocker-0.1.0.zip', 'w', zipfile.ZIP_DEFLATED) as archive:
-    for folder in ['extension', 'native', 'scripts', 'tests', 'docs']:
+with zipfile.ZipFile('dist/OpenLocker-0.1.0-source.zip', 'w', zipfile.ZIP_DEFLATED) as archive:
+    for folder in ['extension', 'native', 'macapp', 'installer', 'scripts', 'tests', 'docs']:
         for file in sorted((root / folder).rglob('*')):
             if file.is_file() and file.name != '.DS_Store':
                 archive.write(file, 'openlocker/' + str(file))
     for name in ['README.md', 'LICENSE', 'PRIVACY.md', 'SECURITY.md', 'extension-id.txt', 'package.json']:
         archive.write(name, 'openlocker/' + name)
-print('Created dist/openlocker-0.1.0.zip')
+print('Created dist/OpenLocker-0.1.0-source.zip')
 PY

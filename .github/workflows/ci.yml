@@ -2,6 +2,7 @@ name: Check OpenLocker
 on:
   push:
     branches: [main]
+    tags: ['v*']
   pull_request:
 permissions:
   contents: read
@@ -19,10 +20,19 @@ jobs:
       - uses: actions/upload-artifact@v4
         with:
           name: openlocker-source
-          path: dist/openlocker-*.zip
-  mac-helper:
+          path: dist/OpenLocker-*-source.zip
+  macos:
     runs-on: macos-latest
     steps:
       - uses: actions/checkout@v4
-      - run: bash scripts/build-native.sh
+      - run: bash scripts/test-mac-app.sh
+      - run: bash scripts/build-installer.sh
+      - run: bash scripts/test-installer.sh
       - run: python3 tests/native_protocol.py
+      - uses: actions/upload-artifact@v4
+        with:
+          name: openlocker-macos
+          path: |
+            dist/OpenLocker-*-macOS.dmg
+            dist/OpenLocker-*-macOS.zip
+            dist/SHA256SUMS.txt

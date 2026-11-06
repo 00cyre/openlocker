@@ -26,3 +26,29 @@ For meaningful testing, use disposable tabs with no unsaved work. Locking intent
 ## Current validation
 
 Initial development validation: Node policy/worker tests, manifest and syntax checks, Swift compilation/ad-hoc signing, native-host protocol tests, and visual review of the extension UI with a clearly isolated preview adapter. Physical fingerprint success/cancellation and installed Chrome integration require the manual checks above.
+
+## Native Mac app acceptance tests
+
+These checks require an installed app, user-approved Accessibility, and a physical Touch ID sensor. Automated policy tests do not prove real OS event ordering or window behavior.
+
+- [ ] Install the DMG into a fresh user account. No compiler or administrator password is required. The app appears in `~/Applications`, and Chrome setup loads the stable extension folder.
+- [ ] Launch the menu-bar app. Choose **Lock an app**, approve Accessibility, then select a disposable test app's window. It protects the whole app and covers its windows with blur panels.
+- [ ] Cancel Touch ID: the target stays covered and cannot receive mouse/scroll/keyboard input. A valid fingerprint removes the panels and returns focus. No password or Apple Watch fallback unlocks it.
+- [ ] Switch to another app, hide the target, and minimize a target window separately. Each relocks it. Test both a single-window and multi-window app.
+- [ ] Reopen the app from the Dock, Spotlight, and Mission Control. Record any content flashes or stale thumbnails; these are limitations of event-driven overlays, not a guaranteed trusted display.
+- [ ] Switch to Finder or another app while Touch ID is pending. A late successful reply must not unlock the old target.
+- [ ] Quit/relaunch the target app: it needs a new fingerprint. Restart OpenLocker: no grant survives.
+- [ ] Test Spaces, full-screen apps, multiple displays, and windows spanning displays. Confirm selection chooses the visible app at the click location.
+- [ ] Verify a minimized app restores a window after success and does not immediately relock from the old minimized state.
+- [ ] Remove protection and quit through the menu: Touch ID is required when applicable. Cancelling preserves protection.
+- [ ] Enable/disable Start at login and test a login cycle. Turn it off before uninstalling.
+- [ ] Revoke Accessibility while an app is unlocked: it should relock, and unlocking should explain the missing permission.
+- [ ] Re-run the installer with existing settings and verify the protected app list survives. An unrelated `~/Applications/OpenLocker.app` must not be overwritten.
+
+Current automated additions: universal Apple Silicon/Intel builds, code-signature verification, DMG integrity, temporary-directory install/upgrade checks, and process-scoped lock policy tests. Initial UI review covers the installer, menu-bar welcome, and production blur/input-blocking panels against a disposable text-entry app. Clicking the blur opened a persistent modal and test typing left the protected field unchanged. Physical-sensor and full Accessibility acceptance checks remain manual.
+
+### Reopen/blur regression
+
+`bash scripts/test-activation.sh` replays the real activation-effects path, including macOS falling back to the previous app when the foreground app hides. The original implementation fails because that fallback dismisses the unlock modal. The overlay implementation keeps the prompt visible and the target covered.
+
+`tests/shield_harness.swift` is a separate manual UI fixture using the production `WindowShield`. Its disposable app contains no real user data, and the fixture cannot authenticate. Check that clicking the blur opens its modal and typing does not change the protected text field. The fixture is never included in the compiled installer.

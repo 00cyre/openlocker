@@ -21,3 +21,11 @@ Do not use this project as the sole protection for sensitive material on a share
 ## Reporting
 
 For a vulnerability, use GitHub's private vulnerability reporting if available. Otherwise contact the repository owner through their published GitHub contact details. Please do not post a working exploit or private browsing data in a public issue.
+
+## Native Mac app locking
+
+The menu-bar app places `NSVisualEffectView` blur/input-blocking panels above protected app windows, uses Accessibility to detect minimization, and reacts to workspace activation/focus events. The original app stays in place while a Touch ID modal owns keyboard focus. It never hides or minimizes an app as its locking action. It cannot block OS-level app launches or render a trusted lock before every frame. A protected window may appear briefly before the overlay is positioned; Mission Control, notifications, app-switcher thumbnails, and other system surfaces can expose app content. Unusual windows and full-screen/Spaces transitions may not be covered reliably. This is a visual/input guard within the normal desktop, not a system-wide prohibition on app input or data access.
+
+Unlocks are bound to an app bundle ID and process ID and are never persisted. Locking, cancelling, changing the target, and process restarts invalidate grants or pending authentication as appropriate. Touch ID is required to remove a protected app or quit through OpenLocker's menu. Force quitting, killing the process, deleting its configuration, or changing the binary bypasses this convenience lock. Login launch is optional; protection starts only once OpenLocker is running.
+
+The installer contains precompiled universal binaries and is ad-hoc signed, not Developer ID signed or notarized. Its checksums detect accidental corruption but are not independent proof of publisher identity. Gatekeeper is never disabled, and Accessibility must be approved by the user. Granting permission to one installed build may need to be repeated after an update.

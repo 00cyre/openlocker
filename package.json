@@ -9,8 +9,14 @@
     "check": "node scripts/check.mjs",
     "build:native": "bash scripts/build-native.sh",
     "test:native": "python3 tests/native_protocol.py",
-    "package": "bash scripts/package.sh"
+    "package": "bash scripts/package.sh",
+    "build:mac": "bash scripts/build-mac-app.sh",
+    "test:mac": "bash scripts/test-mac-app.sh",
+    "build:installer": "bash scripts/build-installer.sh",
+    "test:installer": "bash scripts/test-installer.sh"
   },
-  "engines": { "node": ">=22" },
+  "engines": {
+    "node": ">=22"
+  },
   "license": "MIT"
 }

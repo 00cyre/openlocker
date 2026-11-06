@@ -1,0 +1,365 @@
+import AppKit
+import ApplicationServices
+import LocalAuthentication
+import ServiceManagement
+
+private enum GateAction: Equatable {
+    case unlock(ProtectedApp), remove(ProtectedApp), quit
+    var app: ProtectedApp? { switch self { case .unlock(let app), .remove(let app): return app; case .quit: return nil } }
+}
+
+final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, NSWindowDelegate {
+    private var policy = LockPolicy()
+    private var status: NSStatusItem!
+    private let menu = NSMenu()
+    private let picker = WindowPicker()
+    private var watchers: [pid_t: WindowObserver] = [:]
+    private var tokens: [NSObjectProtocol] = []
+    private var timer: Timer?
+    private var gate: NSWindow?
+    private var action: GateAction?
+    private var authentication: LAContext?
+    private var messageLabel: NSTextField?
+    private var unlockButton: NSButton?
+    private var storageError: String?
+    private let shields = WindowShield()
+    private let green = NSColor(srgbRed: 0.20, green: 0.29, blue: 0.21, alpha: 1)
+    private let configURL = FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent("Library/Application Support/OpenLocker/protected-apps.json")
+    private let excluded = Set(["cc.openlocker.mac", "cc.openlocker.installer", "cc.openlocker.touchid", "com.apple.finder", "com.apple.dock", "com.apple.loginwindow", "com.apple.systempreferences", "com.apple.SecurityAgent"])
+
+    func applicationDidFinishLaunching(_ notification: Notification) {
+        // A second running instance would compete for application focus.
+        if NSRunningApplication.runningApplications(withBundleIdentifier: "cc.openlocker.mac").contains(where: { $0.processIdentifier != ProcessInfo.processInfo.processIdentifier }) {
+            NSApp.terminate(nil); return
+        }
+        if FileManager.default.fileExists(atPath: configURL.path) {
+            do { policy = LockPolicy(apps: try JSONDecoder().decode([ProtectedApp].self, from: Data(contentsOf: configURL))) }
+            catch { storageError = "Couldn't read your protected app list: \(error.localizedDescription)" }
+        }
+        status = NSStatusBar.system.statusItem(withLength: NSStatusItem.squareLength)
+        status.button?.image = NSImage(systemSymbolName: "lock.circle", accessibilityDescription: "OpenLocker")
+        status.button?.image?.isTemplate = true
+        status.button?.toolTip = "OpenLocker — lock apps with Touch ID"
+        menu.delegate = self
+        status.menu = menu
+        rebuildMenu()
+        shields.onUnlock = { [weak self] pid in
+            guard let self, let running = NSRunningApplication(processIdentifier: pid),
+                  let id = running.bundleIdentifier, let protected = self.policy.app(id),
+                  !self.policy.isUnlocked(id, pid: pid) else { return }
+            self.refreshShields(); self.showGate(.unlock(protected))
+        }
+        observeWorkspace()
+        syncWatchers()
+        lockAll()
+        timer = Timer(timeInterval: 0.15, repeats: true) { [weak self] _ in self?.tick() }
+        RunLoop.main.add(timer!, forMode: .common)
+        if !UserDefaults.standard.bool(forKey: "hasOpened") {
+            UserDefaults.standard.set(true, forKey: "hasOpened")
+            DispatchQueue.main.async { [weak self] in self?.welcome() }
+        }
+    }
+    private func persist(_ apps: [ProtectedApp]) throws {
+        try FileManager.default.createDirectory(at: configURL.deletingLastPathComponent(), withIntermediateDirectories: true, attributes: [.posixPermissions: 0o700])
+        try JSONEncoder().encode(apps).write(to: configURL, options: [.atomic])
+        try FileManager.default.setAttributes([.posixPermissions: 0o600], ofItemAtPath: configURL.path)
+    }
+    private func observe(_ name: NSNotification.Name, _ callback: @escaping (Notification) -> Void) {
+        tokens.append(NSWorkspace.shared.notificationCenter.addObserver(forName: name, object: nil, queue: .main, using: callback))
+    }
+    private func observeWorkspace() {
+        observe(NSWorkspace.didActivateApplicationNotification) { [weak self] note in
+            guard let self, let app = note.userInfo?[NSWorkspace.applicationUserInfoKey] as? NSRunningApplication,
+                  let id = app.bundleIdentifier, app.activationPolicy == .regular,
+                  !["cc.openlocker.mac", "com.apple.SecurityAgent", "com.apple.LocalAuthentication.UIAgent"].contains(id) else { return }
+            let locked = self.policy.app(id) != nil && !self.policy.isUnlocked(id, pid: app.processIdentifier)
+            for command in activationCommands(appID: id, pid: app.processIdentifier, locked: locked, hasPrompt: self.action != nil) {
+                switch command {
+                case .hide: break // Legacy effect retained only by the regression replay.
+                case .cover: self.refreshShields()
+                case .prompt(let target): if let protected = self.policy.app(target) { self.showGate(.unlock(protected)) }
+                case .dismiss: self.dismissGate()
+                }
+            }
+        }
+        for name in [NSWorkspace.didDeactivateApplicationNotification, NSWorkspace.didHideApplicationNotification] {
+            observe(name) { [weak self] note in
+                guard let self, let app = note.userInfo?[NSWorkspace.applicationUserInfoKey] as? NSRunningApplication,
+                      let id = app.bundleIdentifier, self.policy.isUnlocked(id, pid: app.processIdentifier) else { return }
+                self.lock(id)
+            }
+        }
+        observe(NSWorkspace.didUnhideApplicationNotification) { [weak self] note in
+            guard let self, let app = note.userInfo?[NSWorkspace.applicationUserInfoKey] as? NSRunningApplication,
+                  let id = app.bundleIdentifier, let protected = self.policy.app(id),
+                  !self.policy.isUnlocked(id, pid: app.processIdentifier) else { return }
+            self.refreshShields()
+            if app.isActive { self.showGate(.unlock(protected)) }
+        }
+        observe(NSWorkspace.didLaunchApplicationNotification) { [weak self] note in
+            guard let self, let app = note.userInfo?[NSWorkspace.applicationUserInfoKey] as? NSRunningApplication,
+                  let id = app.bundleIdentifier, self.policy.app(id) != nil else { return }
+            self.syncWatchers(); self.refreshShields()
+        }
+        observe(NSWorkspace.didTerminateApplicationNotification) { [weak self] note in
+            guard let self, let app = note.userInfo?[NSWorkspace.applicationUserInfoKey] as? NSRunningApplication else { return }
+            self.watchers.removeValue(forKey: app.processIdentifier)
+            if let id = app.bundleIdentifier, self.policy.app(id) != nil { self.policy.lock(id) }
+        }
+        for name in [NSWorkspace.willSleepNotification, NSWorkspace.screensDidSleepNotification, NSWorkspace.sessionDidResignActiveNotification] {
+            observe(name) { [weak self] _ in self?.lockAll(); self?.dismissGate() }
+        }
+    }
+    private func syncWatchers() {
+        let running = NSWorkspace.shared.runningApplications
+        let ids = Set(running.map(\.processIdentifier))
+        watchers = watchers.filter { ids.contains($0.key) }
+        guard AXIsProcessTrusted() else { return }
+        for app in running {
+            guard let id = app.bundleIdentifier, policy.app(id) != nil, watchers[app.processIdentifier] == nil else { continue }
+            watchers[app.processIdentifier] = WindowObserver(pid: app.processIdentifier) { [weak self] in self?.lock(id) }
+        }
+    }
+    private func tick() {
+        syncWatchers()
+        // Notification support differs across apps. Polling catches minimize
+        // transitions and keeps blur/input-blocking windows aligned.
+        for watcher in Array(watchers.values) { watcher.refresh() }
+        for app in NSWorkspace.shared.runningApplications {
+            guard let id = app.bundleIdentifier, let protected = policy.app(id) else { continue }
+            if policy.isUnlocked(id, pid: app.processIdentifier) {
+                if !AXIsProcessTrusted() { lock(id) }
+            } else if app.isActive && shields.hasVisibleWindows(for: app.processIdentifier) {
+                showGate(.unlock(protected))
+            }
+        }
+        refreshShields()
+    }
+    private func refreshShields() {
+        let targets = NSWorkspace.shared.runningApplications.compactMap { app -> ShieldTarget? in
+            guard let id = app.bundleIdentifier, let protected = policy.app(id),
+                  !policy.isUnlocked(id, pid: app.processIdentifier) else { return nil }
+            return ShieldTarget(pid: app.processIdentifier, name: protected.name)
+        }
+        shields.refresh(targets)
+    }
+    private func lock(_ id: String) {
+        guard policy.app(id) != nil else { return }
+        policy.lock(id)
+        refreshShields()
+    }
+    @objc private func lockAll() {
+        policy.lockAll()
+        refreshShields()
+        if authentication != nil { dismissGate() }
+    }
+    func menuWillOpen(_ menu: NSMenu) { rebuildMenu() }
+    private func item(_ title: String, action: Selector?, represented: Any? = nil) -> NSMenuItem {
+        let item = NSMenuItem(title: title, action: action, keyEquivalent: "")
+        item.target = self; item.representedObject = represented
+        return item
+    }
+    private func rebuildMenu() {
+        menu.removeAllItems()
+        let header = item("OpenLocker", action: nil); header.isEnabled = false; menu.addItem(header)
+        menu.addItem(item("Lock an app…", action: #selector(pickApp)))
+        menu.addItem(.separator())
+        if policy.apps.isEmpty { let empty = item("No protected apps yet", action: nil); empty.isEnabled = false; menu.addItem(empty) }
+        for app in policy.apps {
+            let unlocked = NSRunningApplication.runningApplications(withBundleIdentifier: app.bundleID).contains { policy.isUnlocked(app.bundleID, pid: $0.processIdentifier) }
+            let parent = item(app.name, action: nil)
+            parent.image = NSImage(systemSymbolName: unlocked ? "lock.open" : "lock", accessibilityDescription: unlocked ? "Unlocked" : "Locked")
+            let submenu = NSMenu()
+            submenu.addItem(item(unlocked ? "Lock now" : "Unlock with Touch ID…", action: unlocked ? #selector(lockItem(_:)) : #selector(unlockItem(_:)), represented: app))
+            submenu.addItem(item("Stop protecting…", action: #selector(removeItem(_:)), represented: app))
+            parent.submenu = submenu; menu.addItem(parent)
+        }
+        menu.addItem(.separator())
+        menu.addItem(item("Lock all now", action: #selector(lockAll)))
+        menu.addItem(item(AXIsProcessTrusted() ? "Accessibility: enabled" : "Enable Accessibility…", action: #selector(accessibility)))
+        let login = item("Start at login", action: #selector(toggleLogin))
+        login.state = SMAppService.mainApp.status == .enabled ? .on : .off
+        menu.addItem(login)
+        menu.addItem(item("About & help", action: #selector(welcome)))
+        menu.addItem(.separator())
+        menu.addItem(item("Quit OpenLocker…", action: #selector(quit)))
+    }
+    @objc private func pickApp() {
+        if let storageError { alert("Your protected app list needs attention", storageError); return }
+        guard AXIsProcessTrusted() else { accessibility(); return }
+        let context = LAContext()
+        var biometricError: NSError?
+        guard context.canEvaluatePolicy(.deviceOwnerAuthenticationWithBiometrics, error: &biometricError), context.biometryType == .touchID else {
+            alert("Touch ID isn't ready", "Enroll a fingerprint or unlock your Mac, then try again before protecting an app."); return
+        }
+        dismissGate()
+        // Let the menu close before putting up the click selector.
+        DispatchQueue.main.async { [weak self] in
+            self?.picker.begin { [weak self] pid in
+                guard let self, let pid, let app = NSRunningApplication(processIdentifier: pid),
+                      let id = app.bundleIdentifier, let url = app.bundleURL else { return }
+                guard !self.excluded.contains(id) else { self.alert("Choose another app", "macOS system apps and OpenLocker can't be protected."); return }
+                let protected = ProtectedApp(bundleID: id, name: app.localizedName ?? url.deletingPathExtension().lastPathComponent, path: url.path)
+                var updated = self.policy
+                updated.protect(protected)
+                do { try self.persist(updated.apps); self.policy = updated; self.syncWatchers(); self.lock(id); self.showGate(.unlock(protected)) }
+                catch { self.alert("Couldn't save protection", error.localizedDescription) }
+            }
+        }
+    }
+    @objc private func lockItem(_ item: NSMenuItem) { if let app = item.representedObject as? ProtectedApp { lock(app.bundleID) } }
+    @objc private func unlockItem(_ item: NSMenuItem) { if let app = item.representedObject as? ProtectedApp { showGate(.unlock(app)) } }
+    @objc private func removeItem(_ item: NSMenuItem) { if let app = item.representedObject as? ProtectedApp { showGate(.remove(app)) } }
+    @objc private func quit() {
+        if policy.apps.isEmpty { NSApp.terminate(nil) } else { showGate(.quit) }
+    }
+    @objc private func accessibility() {
+        let alert = NSAlert()
+        alert.messageText = "Allow OpenLocker to watch window changes"
+        alert.informativeText = "Accessibility lets OpenLocker detect minimized windows and restore an app after Touch ID. Enable OpenLocker in System Settings → Privacy & Security → Accessibility, then choose Lock an app again. It does not record your screen or keystrokes."
+        alert.addButton(withTitle: "Open Accessibility Settings"); alert.addButton(withTitle: "Not now")
+        NSApp.activate(ignoringOtherApps: true)
+        if alert.runModal() == .alertFirstButtonReturn {
+            let options = [kAXTrustedCheckOptionPrompt.takeUnretainedValue() as String: true] as CFDictionary
+            _ = AXIsProcessTrustedWithOptions(options)
+            NSWorkspace.shared.open(URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility")!)
+        }
+    }
+    @objc private func toggleLogin() {
+        do {
+            if SMAppService.mainApp.status == .enabled { try SMAppService.mainApp.unregister() }
+            else { try SMAppService.mainApp.register() }
+            if SMAppService.mainApp.status == .requiresApproval { SMAppService.openSystemSettingsLoginItems() }
+        } catch { alert("Couldn't change login settings", "Run OpenLocker from your Applications folder and try again. \(error.localizedDescription)") }
+    }
+    @objc private func welcome() {
+        alert("Your apps. Your fingerprint.", "Click OpenLocker's menu-bar icon → Lock an app, then click any window to protect its whole app. It relocks when you switch apps, hide it, or minimize a window.\n\nAccessibility and enrolled Touch ID are required. OpenLocker must stay running; enable Start at login if you want it after a restart. This is a convenience lock: macOS may briefly reveal windows before the blur appears, and stopping OpenLocker bypasses it.\n\nVersion 0.1.0 · Local only · No accounts")
+    }
+    private func alert(_ title: String, _ message: String) {
+        let alert = NSAlert(); alert.messageText = title; alert.informativeText = message
+        NSApp.activate(ignoringOtherApps: true); alert.runModal()
+    }
+    private func showGate(_ requested: GateAction) {
+        if action == requested, let gate, gate.isVisible {
+            if authentication == nil { gate.makeKeyAndOrderFront(nil); NSApp.activate(ignoringOtherApps: true) }
+            return
+        }
+        dismissGate()
+        action = requested
+        let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 440, height: 420), styleMask: [.titled, .closable], backing: .buffered, defer: false)
+        window.title = "OpenLocker"; window.isReleasedWhenClosed = false; window.delegate = self
+        window.level = .modalPanel; window.collectionBehavior = [.moveToActiveSpace, .fullScreenAuxiliary]
+        window.appearance = NSAppearance(named: .aqua)
+        window.backgroundColor = NSColor(srgbRed: 0.96, green: 0.96, blue: 0.94, alpha: 1)
+        let stack = NSStackView(); stack.orientation = .vertical; stack.alignment = .centerX; stack.spacing = 18
+        stack.translatesAutoresizingMaskIntoConstraints = false
+        window.contentView!.addSubview(stack)
+        NSLayoutConstraint.activate([stack.leadingAnchor.constraint(equalTo: window.contentView!.leadingAnchor, constant: 30), stack.trailingAnchor.constraint(equalTo: window.contentView!.trailingAnchor, constant: -30), stack.topAnchor.constraint(equalTo: window.contentView!.topAnchor, constant: 28)])
+        let icon = NSImageView(image: NSImage(systemSymbolName: "touchid", accessibilityDescription: "Touch ID")!)
+        icon.contentTintColor = green; icon.imageScaling = .scaleProportionallyUpOrDown
+        icon.widthAnchor.constraint(equalToConstant: 58).isActive = true; icon.heightAnchor.constraint(equalToConstant: 58).isActive = true
+        stack.addArrangedSubview(icon)
+        let title: String, detail: String, buttonTitle: String
+        switch requested {
+        case .unlock(let app): title = "\(app.name) is locked."; detail = "A quick touch, and you're back in.\nRelocks when you leave or minimize a window."; buttonTitle = "Unlock with Touch ID"
+        case .remove(let app): title = "Stop protecting \(app.name)?"; detail = "Confirm with your fingerprint to remove this app from OpenLocker."; buttonTitle = "Remove with Touch ID"
+        case .quit: title = "Quit OpenLocker?"; detail = "Your apps won't be protected while OpenLocker is closed."; buttonTitle = "Quit with Touch ID"
+        }
+        func label(_ value: String, size: CGFloat, color: NSColor) -> NSTextField {
+            let label = NSTextField(wrappingLabelWithString: value); label.alignment = .center
+            label.font = .systemFont(ofSize: size, weight: size > 20 ? .semibold : .regular); label.textColor = color
+            label.widthAnchor.constraint(equalToConstant: 380).isActive = true
+            stack.addArrangedSubview(label); return label
+        }
+        _ = label(title, size: 26, color: green)
+        _ = label(detail, size: 13, color: .secondaryLabelColor)
+        let button = NSButton(title: buttonTitle, target: self, action: #selector(authenticate))
+        button.bezelStyle = .rounded; button.controlSize = .large; button.bezelColor = green; button.contentTintColor = .white
+        stack.addArrangedSubview(button); unlockButton = button
+        let cancel = NSButton(title: "Keep locked", target: self, action: #selector(cancel))
+        cancel.bezelStyle = .inline; stack.addArrangedSubview(cancel)
+        messageLabel = label("", size: 12, color: .secondaryLabelColor)
+        gate = window; window.center(); window.makeKeyAndOrderFront(nil); NSApp.activate(ignoringOtherApps: true)
+    }
+    @objc private func cancel() { dismissGate() }
+    func windowShouldClose(_ sender: NSWindow) -> Bool { dismissGate(); return false }
+    private func dismissGate(invalidate: Bool = true) {
+        if invalidate { policy.invalidateAuthentication() }
+        authentication?.invalidate(); authentication = nil
+        gate?.orderOut(nil); gate = nil; action = nil; messageLabel = nil; unlockButton = nil
+    }
+    @objc private func authenticate() {
+        guard authentication == nil, let requested = action else { return }
+        if case .unlock = requested, !AXIsProcessTrusted() {
+            messageLabel?.stringValue = "Enable Accessibility from the menu before unlocking."; return
+        }
+        let context = LAContext()
+        context.localizedFallbackTitle = ""; context.localizedCancelTitle = "Keep locked"
+        context.touchIDAuthenticationAllowableReuseDuration = 0
+        var error: NSError?
+        guard context.canEvaluatePolicy(.deviceOwnerAuthenticationWithBiometrics, error: &error), context.biometryType == .touchID else {
+            messageLabel?.stringValue = "Touch ID is unavailable. Enroll a fingerprint or unlock your Mac, then try again."; return
+        }
+        let ticket = policy.ticket(for: requested.app?.bundleID)
+        authentication = context; unlockButton?.isEnabled = false; messageLabel?.stringValue = "Waiting for your fingerprint…"
+        let reason: String
+        switch requested { case .unlock(let app): reason = "unlock \(app.name)"; case .remove(let app): reason = "stop protecting \(app.name)"; case .quit: reason = "quit OpenLocker" }
+        context.evaluatePolicy(.deviceOwnerAuthenticationWithBiometrics, localizedReason: reason) { [weak self] success, _ in
+            DispatchQueue.main.async {
+                guard let self, self.authentication === context, self.action == requested else { return }
+                self.authentication = nil; self.unlockButton?.isEnabled = true
+                guard success, self.policy.accepts(ticket) else {
+                    self.messageLabel?.stringValue = success ? "The app state changed. Try again." : "Not unlocked. Try Touch ID again when you're ready."; return
+                }
+                self.finish(requested, ticket: ticket)
+            }
+        }
+        DispatchQueue.main.asyncAfter(deadline: .now() + 60) { [weak self, weak context] in
+            guard let self, let context, self.authentication === context else { return }
+            context.invalidate(); self.authentication = nil; self.unlockButton?.isEnabled = true
+            self.messageLabel?.stringValue = "Touch ID timed out. Your apps are still locked."
+        }
+    }
+    private func finish(_ requested: GateAction, ticket: AuthenticationTicket) {
+        switch requested {
+        case .quit: dismissGate(); NSApp.terminate(nil)
+        case .remove(let app):
+            var updated = policy
+            guard updated.remove(app.bundleID, ticket: ticket) else { return }
+            do {
+                try persist(updated.apps); policy = updated
+                for running in NSRunningApplication.runningApplications(withBundleIdentifier: app.bundleID) { watchers.removeValue(forKey: running.processIdentifier); running.unhide() }
+                refreshShields(); dismissGate()
+            } catch { messageLabel?.stringValue = "Couldn't save this change. The app stays protected." }
+        case .unlock(let app):
+            if let running = NSRunningApplication.runningApplications(withBundleIdentifier: app.bundleID).first { grant(app, running: running, ticket: ticket) }
+            else {
+                let configuration = NSWorkspace.OpenConfiguration(); configuration.activates = false
+                NSWorkspace.shared.openApplication(at: URL(fileURLWithPath: app.path), configuration: configuration) { [weak self] running, error in
+                    DispatchQueue.main.async {
+                        guard let self, self.action == requested else { return }
+                        if let running, error == nil { self.grant(app, running: running, ticket: ticket) }
+                        else { self.messageLabel?.stringValue = "Couldn't open this app. It may have moved or been removed." }
+                    }
+                }
+            }
+        }
+    }
+    private func grant(_ app: ProtectedApp, running: NSRunningApplication, ticket: AuthenticationTicket) {
+        guard running.bundleIdentifier == app.bundleID, !running.isTerminated,
+              policy.unlock(app.bundleID, pid: running.processIdentifier, ticket: ticket) else {
+            messageLabel?.stringValue = "The app state changed. Try again."; return
+        }
+        syncWatchers()
+        watchers[running.processIdentifier]?.restoreAWindow()
+        refreshShields()
+        dismissGate(invalidate: false)
+        running.unhide()
+        if !running.activate(options: [.activateAllWindows, .activateIgnoringOtherApps]) {
+            lock(app.bundleID); alert("Couldn't bring this app forward", "The app is still locked. Try opening it from the Dock.")
+        }
+    }
+}
+let delegate = AppDelegate()
+NSApplication.shared.delegate = delegate
+NSApplication.shared.run()
