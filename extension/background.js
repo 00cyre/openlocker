@@ -1,9 +1,11 @@
+import { updateStatus } from './updates.js';
 import { HOST, MAX_DOMAINS, normalizeDomain, protectedDomain, domainRules, grantRule, lockedURL, originalURL, trustedPage, webURL, matches } from './core.js';
 
 const base = chrome.runtime.getURL('');
 let tail = Promise.resolve();
 let generation = 0;
 let authenticating = false;
+let pendingUnlock = null;
 const serial = task => {
   const result = tail.then(task);
   tail = result.catch(error => console.error('OpenLocker:', error.message));
@@ -35,7 +37,8 @@ async function shieldTabs(domains, grants = []) {
 }
 
 async function revoke(exceptTabId = null) {
-  generation++;
+  // Returning from the system Touch ID sheet to the same tab is not a tab switch.
+  if (exceptTabId === null || pendingUnlock?.tabId !== exceptTabId) generation++;
   const { grants } = await session();
   const keep = grants.filter(g => g.tabId === exceptTabId);
   await setGrants(keep);
@@ -104,6 +107,19 @@ async function handle(message, sender) {
   if (type === 'HELPER_STATUS') {
     try { return await native('status'); } catch (error) { return { available: false, message: error.message }; }
   }
+  if (type === 'UPDATE_STATUS' || type === 'INSTALL_UPDATE') {
+    if (!trustedPage(sender, base, ['popup.html', 'settings.html'])) fail('Updates are only available in OpenLocker settings or its popup.');
+    if (type === 'UPDATE_STATUS') return updateStatus(message.force === true);
+    const update = await updateStatus(true);
+    if (!update.managed) fail('This copy was loaded from a development folder. Install the latest Mac installer, then load the extension folder shown by it once. Future updates use this button.');
+    if (!update.available) return { updated: false };
+    const helper = await native('status');
+    if (!helper.supportsUpdates) fail('Install OpenLocker 0.1.2 or newer once to enable one-click updates.');
+    await serial(() => revoke());
+    const result = await native('update-extension');
+    if (result.success !== true) fail(result.message || 'The update failed. Your sites remain locked.');
+    return { updated: true, version: result.version };
+  }
   if (type === 'LOCK_DOMAIN') return serial(async () => {
     const domain = normalizeDomain(message.domain);
     const { domains } = await local();
@@ -123,11 +139,14 @@ async function handle(message, sender) {
     const { domains } = await local();
     const domain = protectedDomain(url, domains);
     if (!domain) fail('This site is no longer protected.');
-    const token = generation;
+    if (pendingUnlock) fail('A Touch ID request is already open.');
+    const attempt = { tabId: sender.tab.id, url: sender.url, generation };
+    pendingUnlock = attempt;
+    try {
     await authenticate(domain);
-    return serial(async () => {
+    return await serial(async () => {
       const current = await chrome.tabs.get(sender.tab.id);
-      if (generation !== token || current.url !== sender.url || !current.active) fail('The tab changed. Try unlocking again.');
+      if (generation !== attempt.generation || current.url !== sender.url || !current.active) fail('The tab changed. Try unlocking again.');
       const latest = await local();
       if (protectedDomain(url, latest.domains) !== domain) fail('The domain settings changed. Try again.');
       const { grants } = await session();
@@ -136,6 +155,7 @@ async function handle(message, sender) {
       catch (error) { await setGrants(grants.filter(g => g.tabId !== sender.tab.id)); throw error; }
       return {};
     });
+    } finally { if (pendingUnlock === attempt) pendingUnlock = null; }
   }
   if (type === 'REMOVE_DOMAIN') {
     if (!trustedPage(sender, base, ['settings.html'])) fail('Manage protected sites in settings.');
@@ -171,6 +191,7 @@ chrome.tabs.onRemoved.addListener(tabId => event(async () => {
 }));
 chrome.tabs.onUpdated.addListener((tabId, change) => {
   if (!change.url) return;
+  if (pendingUnlock?.tabId === tabId && change.url !== pendingUnlock.url) generation++;
   event(async () => {
     const { grants } = await session();
     const keep = grants.filter(g => g.tabId !== tabId || (webURL(change.url) && matches(webURL(change.url).hostname, g.domain)));

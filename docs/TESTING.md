@@ -59,3 +59,11 @@ Current automated additions: universal Apple Silicon/Intel builds, code-signatur
 - Approve a 0.1.1 stable-signed release, then install a changed build signed by the same certificate. Confirm no renewal is requested and `AXIsProcessTrusted()` stays true. Test on Apple Silicon and Intel.
 - Decline access, close/reopen setup, and retry. No background permission resets may occur. Cancel Touch ID and confirm the protected app remains covered.
 - Automatic coverage: the real installer + Security.framework test rejects the old requirement for a changed ad-hoc identity, accepts it for a changed stable-signed binary, and tests preservation of app settings. Approval state tests check reset failure, retry, already-trusted protection, and repeated polling/clicks. Real macOS permission dialogs and physical Touch ID remain manual checks.
+
+## 0.1.2 updates and automatic prompts
+
+- From the Mac menu, install Chrome setup, confirm the native host reports ready, and complete Load unpacked from the managed folder. Preserve the extension ID and protected domains during migration from a source checkout.
+- Open a locked site: one Touch ID prompt should appear automatically; successful authentication navigates to the site. Cancel and verify it stays locked without repeated prompts. Switch tabs or navigate during authentication and verify the old response is rejected.
+- Open a locked app: one Touch ID prompt appears with blur/input protection behind it. Cancel and verify a manual retry is available.
+- Exercise an app update with and without protected apps; check the fingerprint confirmation when protected, relaunch, and saved settings. Exercise an extension-only update while the Mac app is running; it must not replace that app. Confirm offline/download/signature failures leave the existing installation and lock rules intact.
+- Automated checks cover the focus-return regression, no-loop web prompts, metadata validation, unsigned/tampered DMG rejection, real signed staging, helper protocol, Chrome-only installs, bundled app setup, and signing identity continuity.

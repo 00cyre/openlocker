@@ -1,5 +1,6 @@
 import Foundation
 import Security
+import CryptoKit
 
 /// Use macOS's actual designated requirement, never just a bundle ID or version.
 enum CodeIdentity {
@@ -20,6 +21,15 @@ enum CodeIdentity {
         guard SecRequirementCreateWithData(requirementData as CFData, [], &requirement) == errSecSuccess,
               let requirement else { return false }
         return SecStaticCodeCheckValidity(code, SecCSFlags(rawValue: kSecCSCheckAllArchitectures | kSecCSStrictValidate), requirement) == errSecSuccess
+    }
+
+    static func validateRelease(_ app: URL, certificate: URL, identifier: String) throws {
+        let digest = Insecure.SHA1.hash(data: try Data(contentsOf: certificate)).map { String(format: "%02x", $0) }.joined()
+        var requirement: SecRequirement?
+        let expression = "identifier \"\(identifier)\" and certificate root = H\"\(digest)\""
+        try check(SecRequirementCreateWithString(expression as CFString, [], &requirement))
+        guard let requirement else { throw IdentityError() }
+        try check(SecStaticCodeCheckValidity(try staticCode(app), SecCSFlags(rawValue: kSecCSCheckAllArchitectures | kSecCSStrictValidate | kSecCSCheckNestedCode), requirement))
     }
 
     static func validate(_ app: URL) throws {

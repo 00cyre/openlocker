@@ -71,3 +71,5 @@ input { min-width:0; width:100%; background:var(--paper); border:1px solid var(-
 [hidden] { display:none !important; }
 @media (max-width:480px) { .page-header { padding:22px; } .page-header .tag { display:none; } .settings-wrap { margin-top:12px; padding:0 18px; } .panel { padding:19px; } .lock-card h1 { font-size:36px; } }
 @media (prefers-reduced-motion:reduce) { * { transition:none !important; } }
+
+.update-row { display:flex; align-items:center; justify-content:space-between; gap:12px; margin-top:20px; padding-top:14px; border-top:1px solid var(--line,#dfe2d6); color:var(--muted,#6b7265); }

@@ -2,13 +2,13 @@
 
 ## Download and open
 
-[Download the macOS installer](https://github.com/00cyre/openlocker/releases/download/v0.1.1/OpenLocker-0.1.1-macOS.dmg), open the disk image, and open **Install OpenLocker.app**. Click **Install OpenLocker**.
+[Download the macOS installer](https://github.com/00cyre/openlocker/releases/download/v0.1.2/OpenLocker-0.1.2-macOS.dmg), open the disk image, and open **Install OpenLocker.app**. Click **Install OpenLocker**.
 
 The universal installer contains Apple Silicon and Intel binaries. You need macOS 13+ and an enrolled Touch ID fingerprint; no compiler, Node, Terminal, or admin password is needed for the downloaded build.
 
 ### macOS blocked the installer
 
-Version 0.1.1 uses a persistent self-signed certificate and is **not notarized by Apple**. After you try to open it, macOS may require you to approve that specific app in **System Settings → Privacy & Security → Open Anyway**. Follow [Apple's instructions](https://support.apple.com/en-us/102445) only if you trust the download. Do not disable Gatekeeper or remove quarantine attributes. The installer does neither.
+Version 0.1.2 uses a persistent self-signed certificate and is **not notarized by Apple**. After you try to open it, macOS may require you to approve that specific app in **System Settings → Privacy & Security → Open Anyway**. Follow [Apple's instructions](https://support.apple.com/en-us/102445) only if you trust the download. Do not disable Gatekeeper or remove quarantine attributes. The installer does neither.
 
 If macOS reports that a download is damaged or contains malware, stop and obtain a fresh release or build from source; do not treat that warning as the ordinary unidentified-developer prompt.
 
@@ -27,7 +27,7 @@ The menu requires Touch ID to stop protecting an app or quit while apps are prot
 
 ## Chrome website locking
 
-1. In the installer, click **Copy folder path & open Chrome**.
+1. In the Mac menu, choose **Install Chrome extension…**, then **Open Chrome setup**. This installs the bundled helper and copies the extension folder path. The standalone installer also offers **Copy folder path & open Chrome**.
 2. At `chrome://extensions`, enable **Developer mode** and click **Load unpacked**.
 3. Press **⇧⌘G**, paste the copied folder path, and choose the folder.
 4. Pin OpenLocker in Chrome's Extensions menu. Visit a site, click OpenLocker, then **Lock this site**.
@@ -56,14 +56,18 @@ The installer writes only to the current user's folders. It checks the extension
 
 ## Updating
 
-Quit the menu-bar app using its menu, run the new installer, and reopen OpenLocker. In Chrome, click **Reload** on its extension card. Your protected app list and Chrome extension settings stay in place.
+Starting with 0.1.2, use **Update to…** in the Mac menu or extension popup/settings. The Mac app checks on launch and every six hours; the extension checks when opened, caching for one hour. **Check for updates** forces a fresh check. Updates are installed only when you press the button. The app relaunches and the extension reloads automatically. Your protected app list and Chrome settings stay in place.
+
+Install 0.1.2 once using the standalone installer if your old version has no update button. For a repository-loaded extension, use the Mac app's **Install Chrome extension…** action and load the managed folder shown above. Do not uninstall the existing extension during migration. Repository folders are never overwritten by the updater.
+
+Both clients verify the signed disk image before mounting it and verify the enclosed installer again before running it. If apps are protected, Touch ID confirms the app's restart. Chrome-only updates leave a running Mac app alone.
 
 ## Troubleshooting
 
 - **Accessibility enabled but OpenLocker still asks:** choose **Already enabled? Repair approval** in OpenLocker's setup window (or **Repair approval & open Settings** after an update). This clears only OpenLocker's stale permission; enable it again in Settings. If it is missing from the list, use **+** to add `~/Applications/OpenLocker.app`. The setup window detects access and continues automatically. If macOS refuses the reset, the app shows the manual remove/re-add steps and reveals the exact app in Finder. Approval must still come from you.
 - **An app is briefly visible or not fully covered:** app locking reacts to macOS events; it cannot block launches or guarantee that every window is covered in every OS transition. Do not rely on it for sensitive material on an untrusted Mac.
 - **Touch ID unavailable:** enroll a fingerprint, open your MacBook lid, or use an eligible Touch ID keyboard. After biometric lockout or a restart, unlock macOS with your password first. OpenLocker itself never falls back to a password.
-- **Chrome helper not found:** run the installer again, then use **Check again** in extension settings. Confirm the extension ID is `hnbakoefkkiblpegjcefcilkdplphmbg`.
+- **Chrome helper not found:** choose **Install Chrome extension…** in the Mac menu (or run the installer again), then use **Check again** in extension settings. Confirm the extension ID is `hnbakoefkkiblpegjcefcilkdplphmbg`.
 - **A Chrome page stays covered:** restore/reload the extension and refresh. If uninstalling, refresh any previously covered tabs after removal.
 
 ## Uninstall

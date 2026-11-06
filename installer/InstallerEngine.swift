@@ -1,5 +1,8 @@
 import CryptoKit
 import Foundation
+import Darwin
+
+enum InstallScope { case all, chrome }
 
 struct InstallResult {
     let extensionDirectory: URL
@@ -17,16 +20,20 @@ struct InstallFailure: LocalizedError {
 struct InstallerEngine {
     let payload: URL
     let home: URL
+    private let bundledHelper: URL?
+    init(payload: URL, home: URL, helper: URL? = nil) {
+        self.payload = payload; self.home = home; self.bundledHelper = helper
+    }
     private let fm = FileManager.default
 
-    func install() throws -> InstallResult {
+    func install(scope: InstallScope = .all) throws -> InstallResult {
         let extensionSource = payload.appendingPathComponent("extension")
-        let helperSource = payload.appendingPathComponent("OpenLocker.app")
+        let helperSource = bundledHelper ?? payload.appendingPathComponent("OpenLocker.app")
         let desktopSource = payload.appendingPathComponent("Desktop/OpenLocker.app")
         let manifestData = try Data(contentsOf: extensionSource.appendingPathComponent("manifest.json"))
         guard let manifest = try JSONSerialization.jsonObject(with: manifestData) as? [String: Any],
               let key = manifest["key"] as? String, let publicKey = Data(base64Encoded: key),
-              let version = manifest["version"] as? String, version == "0.1.1" else {
+              let version = manifest["version"] as? String, version == "0.1.2" else {
             throw InstallFailure(message: "The bundled extension is incomplete. Download OpenLocker again.")
         }
         let extensionID = SHA256.hash(data: publicKey).prefix(16).flatMap { byte in
@@ -34,27 +41,38 @@ struct InstallerEngine {
         }
         guard "chrome-extension://\(String(extensionID))/" == Config.allowedOrigin,
               fm.isExecutableFile(atPath: helperSource.appendingPathComponent("Contents/MacOS/OpenLocker").path),
-              fm.isExecutableFile(atPath: desktopSource.appendingPathComponent("Contents/MacOS/OpenLockerMac").path) else {
+              (scope == .chrome || fm.isExecutableFile(atPath: desktopSource.appendingPathComponent("Contents/MacOS/OpenLockerMac").path)) else {
             throw InstallFailure(message: "The bundled helper does not match the extension. Download OpenLocker again.")
         }
 
         let support = home.appendingPathComponent("Library/Application Support")
         let destination = support.appendingPathComponent("OpenLocker")
+        try fm.createDirectory(at: destination, withIntermediateDirectories: true, attributes: [.posixPermissions: 0o700])
+        let lockFD = open(destination.appendingPathComponent(".install-lock").path, O_CREAT | O_RDWR, 0o600)
+        guard lockFD >= 0 else { throw InstallFailure(message: "Couldn't prepare the installation lock.") }
+        defer { close(lockFD) }
+        guard flock(lockFD, LOCK_EX | LOCK_NB) == 0 else { throw InstallFailure(message: "Another OpenLocker update is already running.") }
+        if let installed = NSDictionary(contentsOf: destination.appendingPathComponent("OpenLocker.app/Contents/Info.plist"))?["CFBundleShortVersionString"] as? String,
+           installed.compare(version, options: .numeric) == .orderedDescending {
+            throw InstallFailure(message: "A newer Chrome helper is already installed. Update the Mac app before running Chrome setup again.")
+        }
         let hosts = support.appendingPathComponent("Google/Chrome/NativeMessagingHosts")
         let applications = home.appendingPathComponent("Applications")
         let desktopApp = applications.appendingPathComponent("OpenLocker.app")
-        try CodeIdentity.validate(desktopSource)
+        if scope == .all { try CodeIdentity.validate(desktopSource) }
         try CodeIdentity.validate(helperSource)
         let renewalFile = destination.appendingPathComponent("accessibility-renewal-required")
         let identityChanged: Bool
-        if fm.fileExists(atPath: desktopApp.path) {
+        if scope == .all && fm.fileExists(atPath: desktopApp.path) {
             identityChanged = (try? CodeIdentity.requirement(for: desktopApp))
                 .map { !CodeIdentity.satisfies($0, app: desktopSource) } ?? true
-        } else { identityChanged = false }
-        try fm.createDirectory(at: destination, withIntermediateDirectories: true, attributes: [.posixPermissions: 0o700])
+        } else {
+            // A user may be migrating an already-used source build into ~/Applications.
+            identityChanged = scope == .all && fm.fileExists(atPath: destination.appendingPathComponent("protected-apps.json").path)
+        }
         try fm.createDirectory(at: hosts, withIntermediateDirectories: true, attributes: nil)
         try fm.createDirectory(at: applications, withIntermediateDirectories: true, attributes: nil)
-        if fm.fileExists(atPath: desktopApp.path) {
+        if scope == .all && fm.fileExists(atPath: desktopApp.path) {
             let info = NSDictionary(contentsOf: desktopApp.appendingPathComponent("Contents/Info.plist"))
             guard info?["CFBundleIdentifier"] as? String == "cc.openlocker.mac" else {
                 throw InstallFailure(message: "Another app named OpenLocker already exists in your Applications folder. Move it before installing.")
@@ -67,8 +85,10 @@ struct InstallerEngine {
         // Copy and validate before replacing an existing installation. Keep the
         // same extension path so Chrome retains the user's existing settings.
         try fm.copyItem(at: extensionSource, to: stage.appendingPathComponent("extension"))
+        // Distinguish the managed folder from a developer's unpacked checkout.
+        try Data("{\"managed\":true}\n".utf8).write(to: stage.appendingPathComponent("extension/installation.json"))
         try fm.copyItem(at: helperSource, to: stage.appendingPathComponent("OpenLocker.app"))
-        try fm.copyItem(at: desktopSource, to: stage.appendingPathComponent("desktop.app"))
+        if scope == .all { try fm.copyItem(at: desktopSource, to: stage.appendingPathComponent("desktop.app")) }
         let helper = destination.appendingPathComponent("OpenLocker.app/Contents/MacOS/OpenLocker")
         let hostManifest = hosts.appendingPathComponent("cc.openlocker.touchid.json")
         let host: [String: Any] = [
@@ -82,12 +102,14 @@ struct InstallerEngine {
         var desktopBackedUp = false
         var desktopInstalled = false
         do {
-            if fm.fileExists(atPath: desktopApp.path) {
+            if scope == .all && fm.fileExists(atPath: desktopApp.path) {
                 try fm.moveItem(at: desktopApp, to: stage.appendingPathComponent("backup-desktop.app"))
                 desktopBackedUp = true
             }
-            try fm.moveItem(at: stage.appendingPathComponent("desktop.app"), to: desktopApp)
-            desktopInstalled = true
+            if scope == .all {
+                try fm.moveItem(at: stage.appendingPathComponent("desktop.app"), to: desktopApp)
+                desktopInstalled = true
+            }
             for name in ["OpenLocker.app", "extension"] {
                 let target = destination.appendingPathComponent(name)
                 if fm.fileExists(atPath: target.path) {

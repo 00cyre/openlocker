@@ -51,7 +51,25 @@ var error: NSError?
 let available = context.canEvaluatePolicy(.deviceOwnerAuthenticationWithBiometrics, error: &error) && context.biometryType == .touchID
 
 if operation == "status" {
-    reply(["id": id, "available": available, "version": "0.1.1", "message": available ? "Touch ID is ready." : message(for: error)])
+    reply(["id": id, "available": available, "version": "0.1.2", "supportsUpdates": true, "message": available ? "Touch ID is ready." : message(for: error)])
+}
+if operation == "update-extension" {
+    Task {
+        do {
+            let release = try await ReleaseUpdater.latest()
+            let current = ReleaseVersion(Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "0.0.0")!
+            guard release.version >= current else { throw UpdateFailure("A newer helper is already installed.") }
+            guard let certificate = Bundle.main.url(forResource: "ReleaseCertificate", withExtension: "cer") else { throw UpdateFailure("The signing certificate is missing. Reinstall OpenLocker.") }
+            let staged = try await ReleaseUpdater.stage(release, certificate: certificate)
+            defer { staged.remove() }
+            let process = try staged.launch(arguments: ["--update-chrome"])
+            process.waitUntilExit()
+            guard process.terminationStatus == 0 else { throw UpdateFailure("The update couldn't be installed. Your existing files were kept.") }
+            reply(["id": id, "success": true, "version": release.version.text])
+        } catch { reply(["id": id, "success": false, "message": error.localizedDescription]) }
+    }
+    RunLoop.main.run()
+    exit(1)
 }
 guard operation == "authenticate" else { reply(["id": id, "success": false, "message": "Unsupported operation."]) }
 guard let domain = request["domain"] as? String, domain.count <= 253,

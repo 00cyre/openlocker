@@ -12,7 +12,7 @@ OpenLocker helps prevent casual viewing of selected websites in an enabled Chrom
 
 ## Limits
 
-Extension storage and source files are not tamper-resistant. The public manifest key provides a stable development ID, not authenticity or protection against a malicious replacement. The local helper is ad-hoc signed and is not distributed as a notarized binary.
+Extension storage and source files are not tamper-resistant. The public manifest key provides a stable development ID, not authenticity or protection against a malicious replacement. Published binaries use a persistent self-signed certificate; they are not Apple-notarized. Source builds are ad-hoc signed unless a signing identity is configured.
 
 Network interception does not cover every Chrome cache or protected surface. The document guard and navigation listener provide additional coverage, not an isolated trusted display against hostile website code. The guard also briefly covers unprotected HTTP(S) documents while asking the worker for a decision; if the extension stops responding, refresh after restoring/removing it.
 
@@ -28,4 +28,12 @@ The menu-bar app places `NSVisualEffectView` blur/input-blocking panels above pr
 
 Unlocks are bound to an app bundle ID and process ID and are never persisted. Locking, cancelling, changing the target, and process restarts invalidate grants or pending authentication as appropriate. Touch ID is required to remove a protected app or quit through OpenLocker's menu. Force quitting, killing the process, deleting its configuration, or changing the binary bypasses this convenience lock. Login launch is optional; protection starts only once OpenLocker is running.
 
-The installer contains precompiled universal binaries and is ad-hoc signed, not Developer ID signed or notarized. Its checksums detect accidental corruption but are not independent proof of publisher identity. Gatekeeper is never disabled, and Accessibility must be approved by the user. Granting permission to one installed build may need to be repeated after an update.
+The installer contains precompiled universal binaries signed with the persistent release identity, not a Developer ID certificate. Its checksums detect accidental corruption but are not independent proof of publisher identity. Gatekeeper is never disabled, and Accessibility must be approved by the user. Updates signed with the same identity should retain that approval; migration from an ad-hoc build needs one renewal.
+
+## Updates and Chrome setup
+
+The Mac app and extension request public release metadata from GitHub. Updates download only the expected asset from this repository. Before mounting an update, the updater verifies its disk-image signature against the bundled release certificate; it then verifies the installer signature and version before execution. A trusted initial installation is required: the public certificate pins subsequent updates but does not establish independent publisher trust for the first download.
+
+Installation is serialized, rejects older helper versions, and preserves the protected app list. Chrome-only setup and updates replace only the extension and its helper. They never replace or restart the Mac app. A desktop update requires Touch ID when apps are protected and briefly stops protection while the app relaunches.
+
+Chrome setup prepares a stable unpacked extension folder and registers its native host for the compiled extension ID. Chrome's initial extension approval remains a user action. Web pages cannot request updates, and repository-loaded extensions must switch to the managed folder once before their Update button can install releases.

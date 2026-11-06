@@ -1,24 +1,24 @@
 # Privacy
 
-OpenLocker makes no application network requests, has no accounts or analytics, and does not collect or transmit browsing history, page content, or fingerprints.
+OpenLocker has no accounts or analytics and does not collect or transmit browsing history, page content, protected app/domain lists, or fingerprints. Update checks contact GitHub for public release metadata; clicking Update downloads the signed release from GitHub. These requests expose ordinary network information such as your IP address to GitHub. No protected site or app information is included.
 
 The extension stores a list of protected domains in `chrome.storage.local`. Temporary grants identify a tab and domain in `chrome.storage.session` and Chrome session rules. Rules are local to the Chrome profile. The original destination is carried in the local lock-page URL and can remain in browser history. Uninstalling the extension removes its Chrome storage and rules; browser history is controlled separately by Chrome.
 
-The native helper receives only an operation, a fresh request ID, and the protected domain. macOS displays the system Touch ID prompt and returns an authentication result. Neither OpenLocker component receives fingerprint images or biometric templates. Any enrolled fingerprint for the active macOS user can authenticate.
+The native helper receives an operation, a fresh request ID, and (for authentication) the protected domain. An explicit update operation downloads and installs the verified Chrome components. macOS displays the system Touch ID prompt and returns an authentication result. Neither OpenLocker component receives fingerprint images or biometric templates. Any enrolled fingerprint for the active macOS user can authenticate.
 
 Permissions:
 
 | Permission | Purpose |
 | --- | --- |
-| `storage` | Remember protected domains and temporary tab grants locally. |
+| `storage` | Remember protected domains, temporary tab grants, and cached update metadata locally. |
 | `tabs` | Identify the current site and replace already-open protected pages. |
-| `nativeMessaging` | Ask the locally installed Swift helper to authenticate using Touch ID. |
+| `nativeMessaging` | Ask the local Swift helper for Touch ID authentication or an explicit verified update. |
 | `declarativeNetRequestWithHostAccess` | Install persistent domain redirects/blocks and temporary tab-scoped allowances. |
 | HTTP/HTTPS host access | Apply blocking and a document-start guard across the sites the user chooses. |
 | `webNavigation` | Recheck protected navigation, including cached documents. |
 | `idle` | Relock when macOS reports that the screen is locked. |
 
-The UI uses bundled assets and system fonts. GitHub links open only when clicked. Normal browsing after a successful unlock still contacts the website as usual. No claim is made about the privacy practices of those sites or Chrome itself.
+The UI uses bundled assets and system fonts. The Mac app checks for releases at launch and every six hours. The extension checks when its popup or settings opens, with results cached locally for an hour. These checks do not install anything automatically. Normal browsing after a successful unlock still contacts the website as usual. No claim is made about the privacy practices of those sites or Chrome itself.
 
 ## Mac menu-bar app
 

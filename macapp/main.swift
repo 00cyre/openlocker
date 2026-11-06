@@ -4,8 +4,9 @@ import LocalAuthentication
 import ServiceManagement
 
 private enum GateAction: Equatable {
-    case unlock(ProtectedApp), remove(ProtectedApp), quit
-    var app: ProtectedApp? { switch self { case .unlock(let app), .remove(let app): return app; case .quit: return nil } }
+    case unlock(ProtectedApp), remove(ProtectedApp), quit, update
+    var automaticallyAuthenticates: Bool { switch self { case .unlock, .update: return true; default: return false } }
+    var app: ProtectedApp? { switch self { case .unlock(let app), .remove(let app): return app; case .quit, .update: return nil } }
 }
 
 final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, NSWindowDelegate {
@@ -17,12 +18,16 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, NSWind
     private var watchers: [pid_t: WindowObserver] = [:]
     private var tokens: [NSObjectProtocol] = []
     private var timer: Timer?
+    private var updateTimer: Timer?
     private var gate: NSWindow?
     private var action: GateAction?
     private var authentication: LAContext?
     private var messageLabel: NSTextField?
     private var unlockButton: NSButton?
     private var storageError: String?
+    private var availableRelease: OpenLockerRelease?
+    private var updateBusy = false
+    private var updateChecking = false
     private let shields = WindowShield()
     private let green = NSColor(srgbRed: 0.20, green: 0.29, blue: 0.21, alpha: 1)
     private let configURL = FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent("Library/Application Support/OpenLocker/protected-apps.json")
@@ -44,6 +49,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, NSWind
         menu.delegate = self
         status.menu = menu
         rebuildMenu()
+        checkUpdates(silent: true)
+        updateTimer = Timer.scheduledTimer(withTimeInterval: 6 * 60 * 60, repeats: true) { [weak self] _ in self?.checkUpdates(silent: true) }
         shields.onUnlock = { [weak self] pid in
             guard let self, let running = NSRunningApplication(processIdentifier: pid),
                   let id = running.bundleIdentifier, let protected = self.policy.app(id),
@@ -183,6 +190,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, NSWind
         let login = item("Start at login", action: #selector(toggleLogin))
         login.state = SMAppService.mainApp.status == .enabled ? .on : .off
         menu.addItem(login)
+        let update = item(updateBusy ? "Updating…" : updateChecking ? "Checking for updates…" : availableRelease.map { "Update to \($0.version.text)…" } ?? "Check for updates…", action: #selector(updateApp))
+        update.isEnabled = !updateBusy && !updateChecking; menu.addItem(update)
+        menu.addItem(item("Install Chrome extension…", action: #selector(installChrome)))
         menu.addItem(item("About & help", action: #selector(welcome)))
         menu.addItem(.separator())
         menu.addItem(item("Quit OpenLocker…", action: #selector(quit)))
@@ -231,8 +241,70 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, NSWind
             if SMAppService.mainApp.status == .requiresApproval { SMAppService.openSystemSettingsLoginItems() }
         } catch { alert("Couldn't change login settings", "Run OpenLocker from your Applications folder and try again. \(error.localizedDescription)") }
     }
+    @objc private func installChrome() {
+        do {
+            guard let resources = Bundle.main.resourceURL else { throw InstallFailure(message: "Chrome setup files are missing. Reinstall OpenLocker.") }
+            let result = try InstallerEngine(payload: resources.appendingPathComponent("Chrome"),
+                home: FileManager.default.homeDirectoryForCurrentUser,
+                helper: Bundle.main.bundleURL.appendingPathComponent("Contents/Helpers/OpenLocker.app")).install(scope: .chrome)
+            NSPasteboard.general.clearContents()
+            NSPasteboard.general.setString(result.extensionDirectory.path, forType: .string)
+            let setup = NSAlert()
+            setup.messageText = "Ready to add to Chrome"
+            setup.informativeText = "The extension and Touch ID helper are installed. Chrome needs your approval once:\n\n1. Turn on Developer mode.\n2. Click Load unpacked.\n3. Press ⇧⌘G and paste the copied folder path, then select it.\n\nFuture updates use the Update button in OpenLocker. Your existing protected sites stay under the same extension ID."
+            setup.addButton(withTitle: "Open Chrome setup"); setup.addButton(withTitle: "Later")
+            NSApp.activate(ignoringOtherApps: true)
+            if setup.runModal() == .alertFirstButtonReturn {
+                guard let chrome = NSWorkspace.shared.urlForApplication(withBundleIdentifier: "com.google.Chrome") else {
+                    alert("Install Google Chrome to continue", "The extension folder path is copied. Open Chrome's Extensions page when Chrome is installed."); return
+                }
+                NSWorkspace.shared.open([URL(string: "chrome://extensions")!], withApplicationAt: chrome, configuration: NSWorkspace.OpenConfiguration()) { _, error in
+                    if error != nil { DispatchQueue.main.async { self.alert("Open Chrome's Extensions page", "The folder path is copied. Turn on Developer mode, click Load unpacked, and paste the path with ⇧⌘G.") } }
+                }
+            }
+        } catch { alert("Couldn't set up Chrome", error.localizedDescription) }
+    }
+    private var appVersion: ReleaseVersion { ReleaseVersion(Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "0.0.0")! }
+    private func checkUpdates(silent: Bool) {
+        guard !updateBusy && !updateChecking else { return }
+        updateChecking = true
+        Task { @MainActor [weak self] in
+            guard let self else { return }
+            do {
+                let release = try await ReleaseUpdater.latest()
+                self.availableRelease = release.version > self.appVersion ? release : nil
+                self.updateChecking = false
+                if !silent {
+                    if self.availableRelease != nil { self.updateApp() }
+                    else { self.alert("You're up to date", "OpenLocker \(self.appVersion.text) is the latest installed version.") }
+                }
+            } catch { self.updateChecking = false; if !silent { self.alert("Couldn't check for updates", error.localizedDescription) } }
+        }
+    }
+    @objc private func updateApp() {
+        guard !updateBusy else { return }
+        guard availableRelease != nil else { checkUpdates(silent: false); return }
+        if policy.apps.isEmpty { installUpdate() } else { showGate(.update) }
+    }
+    private func installUpdate() {
+        guard let release = availableRelease, !updateBusy else { return }
+        updateBusy = true; lockAll()
+        Task { @MainActor [weak self] in
+            guard let self else { return }
+            do {
+                guard let certificate = Bundle.main.url(forResource: "ReleaseCertificate", withExtension: "cer") else { throw UpdateFailure("The signing certificate is missing. Reinstall OpenLocker.") }
+                let staged = try await ReleaseUpdater.stage(release, certificate: certificate)
+                do { _ = try staged.launch(arguments: ["--update-app", "--parent-pid", String(ProcessInfo.processInfo.processIdentifier), "--previous-app", Bundle.main.bundleURL.path]) }
+                catch { staged.remove(); throw error }
+                NSApp.terminate(nil)
+            } catch {
+                self.updateBusy = false
+                self.alert("Couldn't update OpenLocker", error.localizedDescription)
+            }
+        }
+    }
     @objc private func welcome() {
-        alert("Your apps. Your fingerprint.", "Click OpenLocker's menu-bar icon → Lock an app, then click any window to protect its whole app. It relocks when you switch apps, hide it, or minimize a window.\n\nAccessibility and enrolled Touch ID are required. OpenLocker must stay running; enable Start at login if you want it after a restart. This is a convenience lock: macOS may briefly reveal windows before the blur appears, and stopping OpenLocker bypasses it.\n\nVersion 0.1.1 · Local only · No accounts")
+        alert("Your apps. Your fingerprint.", "Click OpenLocker's menu-bar icon → Lock an app, then click any window to protect its whole app. It relocks when you switch apps, hide it, or minimize a window.\n\nAccessibility and enrolled Touch ID are required. OpenLocker must stay running; enable Start at login if you want it after a restart. This is a convenience lock: macOS may briefly reveal windows before the blur appears, and stopping OpenLocker bypasses it.\n\nVersion 0.1.2 · Local only · No accounts")
     }
     private func alert(_ title: String, _ message: String) {
         let alert = NSAlert(); alert.messageText = title; alert.informativeText = message
@@ -263,6 +335,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, NSWind
         switch requested {
         case .unlock(let app): title = "\(app.name) is locked."; detail = "A quick touch, and you're back in.\nRelocks when you leave or minimize a window."; buttonTitle = "Unlock with Touch ID"
         case .remove(let app): title = "Stop protecting \(app.name)?"; detail = "Confirm with your fingerprint to remove this app from OpenLocker."; buttonTitle = "Remove with Touch ID"
+        case .update: title = "Update OpenLocker?"; detail = "Confirm to install the verified update and relaunch. Your protected app list stays saved."; buttonTitle = "Update with Touch ID"
         case .quit: title = "Quit OpenLocker?"; detail = "Your apps won't be protected while OpenLocker is closed."; buttonTitle = "Quit with Touch ID"
         }
         func label(_ value: String, size: CGFloat, color: NSColor) -> NSTextField {
@@ -280,6 +353,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, NSWind
         cancel.bezelStyle = .inline; stack.addArrangedSubview(cancel)
         messageLabel = label("", size: 12, color: .secondaryLabelColor)
         gate = window; window.center(); window.makeKeyAndOrderFront(nil); NSApp.activate(ignoringOtherApps: true)
+        if requested.automaticallyAuthenticates {
+            DispatchQueue.main.async { [weak self, weak window] in
+                guard let self, self.gate === window, self.action == requested else { return }
+                self.authenticate()
+            }
+        }
     }
     @objc private func cancel() { dismissGate() }
     func windowShouldClose(_ sender: NSWindow) -> Bool { dismissGate(); return false }
@@ -305,7 +384,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, NSWind
         let ticket = policy.ticket(for: requested.app?.bundleID)
         authentication = context; unlockButton?.isEnabled = false; messageLabel?.stringValue = "Waiting for your fingerprint…"
         let reason: String
-        switch requested { case .unlock(let app): reason = "unlock \(app.name)"; case .remove(let app): reason = "stop protecting \(app.name)"; case .quit: reason = "quit OpenLocker" }
+        switch requested { case .unlock(let app): reason = "unlock \(app.name)"; case .remove(let app): reason = "stop protecting \(app.name)"; case .quit: reason = "quit OpenLocker"; case .update: reason = "update and relaunch OpenLocker" }
         context.evaluatePolicy(.deviceOwnerAuthenticationWithBiometrics, localizedReason: reason) { [weak self] success, _ in
             DispatchQueue.main.async {
                 guard let self, self.authentication === context, self.action == requested else { return }
@@ -324,6 +403,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, NSWind
     }
     private func finish(_ requested: GateAction, ticket: AuthenticationTicket) {
         switch requested {
+        case .update: dismissGate(); installUpdate()
         case .quit: dismissGate(); NSApp.terminate(nil)
         case .remove(let app):
             var updated = policy

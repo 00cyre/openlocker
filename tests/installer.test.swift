@@ -1,4 +1,5 @@
 import Foundation
+import Darwin
 
 @main
 struct InstallerTests {
@@ -31,11 +32,57 @@ struct InstallerTests {
         precondition(!fm.fileExists(atPath: obsolete.path))
         precondition(fm.fileExists(atPath: keep.path))
 
+        let desktopBefore = try Data(contentsOf: second.desktopApp.appendingPathComponent("Contents/MacOS/OpenLockerMac"))
+        let chromeOnly = try InstallerEngine(payload: payload, home: home).install(scope: .chrome)
+        let desktopAfter = try Data(contentsOf: chromeOnly.desktopApp.appendingPathComponent("Contents/MacOS/OpenLockerMac"))
+        precondition(desktopBefore == desktopAfter, "Chrome updates must not replace a running desktop app")
+        let managed = try JSONSerialization.jsonObject(with: Data(contentsOf: chromeOnly.extensionDirectory.appendingPathComponent("installation.json"))) as! [String: Bool]
+        precondition(managed["managed"] == true)
+        let chromeHome = temporary.appendingPathComponent("chrome-only")
+        let initialChrome = try InstallerEngine(payload: payload, home: chromeHome).install(scope: .chrome)
+        precondition(!fm.fileExists(atPath: initialChrome.desktopApp.path))
+
+        let bundledApp = root.appendingPathComponent("build/release-desktop/OpenLocker.app")
+        let appSetup = try InstallerEngine(payload: bundledApp.appendingPathComponent("Contents/Resources/Chrome"),
+            home: temporary.appendingPathComponent("app-setup"),
+            helper: bundledApp.appendingPathComponent("Contents/Helpers/OpenLocker.app")).install(scope: .chrome)
+        precondition(fm.isExecutableFile(atPath: appSetup.helperExecutable.path))
+        precondition(!fm.fileExists(atPath: appSetup.desktopApp.path), "Chrome setup must not replace the Mac app")
+
+        // A used source build needs an approval migration on its first full install.
+        let sourceHome = temporary.appendingPathComponent("source-migration")
+        let sourceSupport = sourceHome.appendingPathComponent("Library/Application Support/OpenLocker")
+        try fm.createDirectory(at: sourceSupport, withIntermediateDirectories: true)
+        let protectedApps = sourceSupport.appendingPathComponent("protected-apps.json")
+        let protectedData = Data("[]".utf8)
+        try protectedData.write(to: protectedApps)
+        let sourceChrome = try InstallerEngine(payload: payload, home: sourceHome).install(scope: .chrome)
+        precondition(!sourceChrome.needsAccessibilityRenewal)
+        let sourceInstalled = try InstallerEngine(payload: payload, home: sourceHome).install()
+        precondition(sourceInstalled.needsAccessibilityRenewal)
+        let preservedData = try Data(contentsOf: protectedApps)
+        precondition(preservedData == protectedData)
+
+        // An in-flight install must be rejected before any replacement begins.
+        let lock = open(sourceSupport.appendingPathComponent(".install-lock").path, O_RDWR)
+        precondition(lock >= 0 && flock(lock, LOCK_EX | LOCK_NB) == 0)
+        do { _ = try InstallerEngine(payload: payload, home: sourceHome).install(); fatalError("Concurrent install accepted") }
+        catch is InstallFailure { }
+        close(lock)
+
+        let helperInfo = initialChrome.helperExecutable.deletingLastPathComponent().deletingLastPathComponent().appendingPathComponent("Info.plist")
+        let newerInfo = NSMutableDictionary(contentsOf: helperInfo)!
+        newerInfo["CFBundleShortVersionString"] = "0.2.0"
+        precondition(newerInfo.write(to: helperInfo, atomically: true))
+        do { _ = try InstallerEngine(payload: payload, home: chromeHome).install(scope: .chrome); fatalError("Downgrade accepted") }
+        catch is InstallFailure { }
+        precondition(NSDictionary(contentsOf: helperInfo)?["CFBundleShortVersionString"] as? String == "0.2.0")
+
         // Invalid bundled identity must fail before touching an existing install.
         let bad = temporary.appendingPathComponent("invalid-payload")
         try fm.copyItem(at: payload, to: bad)
         let badManifest = bad.appendingPathComponent("extension/manifest.json")
-        try Data("{\"key\":\"YmFk\",\"version\":\"0.1.1\"}".utf8).write(to: badManifest)
+        try Data("{\"key\":\"YmFk\",\"version\":\"0.1.2\"}".utf8).write(to: badManifest)
         do { _ = try InstallerEngine(payload: bad, home: home).install(); fatalError("Invalid identity accepted") }
         catch is InstallFailure { }
         precondition(fm.isExecutableFile(atPath: second.helperExecutable.path))
@@ -55,6 +102,6 @@ struct InstallerTests {
         do { _ = try InstallerEngine(payload: payload, home: conflictHome).install(); fatalError("An unrelated app was overwritten") }
         catch is InstallFailure { }
         precondition(fm.fileExists(atPath: conflict.appendingPathComponent("Info.plist").path))
-        print("Installer checks passed: clean install, paths with spaces, permissions, upgrade, identity rejection, and destination failure.")
+        print("Installer checks passed: clean install, app-bundled Chrome setup, scoped updates, source migration, concurrency, downgrade/identity rejection, and destination failure.")
     }
 }

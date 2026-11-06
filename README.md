@@ -3,11 +3,11 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/00cyre/openlocker/releases/download/v0.1.1/OpenLocker-0.1.1-macOS.dmg"><img src="docs/assets/download.svg" alt="Download OpenLocker for macOS — Apple Silicon and Intel" width="310"></a>
+  <a href="https://github.com/00cyre/openlocker/releases/download/v0.1.2/OpenLocker-0.1.2-macOS.dmg"><img src="docs/assets/download.svg" alt="Download OpenLocker for macOS — Apple Silicon and Intel" width="310"></a>
 </p>
 
 <p align="center">
-  <a href="https://github.com/00cyre/openlocker/releases/tag/v0.1.1">Release notes</a> ·
+  <a href="https://github.com/00cyre/openlocker/releases/tag/v0.1.2">Release notes</a> ·
   <a href="#get-started">Get started</a> ·
   <a href="docs/INSTALL.md">Installation help</a> ·
   <a href="docs/DEVELOPMENT.md">Build from source</a>
@@ -34,23 +34,29 @@
 **macOS 13+ · enrolled Touch ID · Apple Silicon or Intel**<br>
 Chrome 120+ is needed only for website locking.
 
-1. **[Download OpenLocker](https://github.com/00cyre/openlocker/releases/download/v0.1.1/OpenLocker-0.1.1-macOS.dmg)**, open the disk, and launch **Install OpenLocker**.
+1. **[Download OpenLocker](https://github.com/00cyre/openlocker/releases/download/v0.1.2/OpenLocker-0.1.2-macOS.dmg)**, open the disk, and launch **Install OpenLocker**.
 2. Click **Install OpenLocker**. The Mac app, Chrome extension, and Touch ID helper are installed for your user. No Terminal, Xcode, or admin password.
 3. Choose your setup:
 
    - **Mac apps:** click **Open OpenLocker**. Use its menu-bar icon, choose **Lock an app**, and allow Accessibility when asked. Click a window to protect its app.
-   - **Chrome websites:** click **Copy folder path & open Chrome**. Turn on **Developer mode**, click **Load unpacked**, then press **⇧⌘G** and paste the copied path. Pin the extension.
+   - **Chrome websites:** choose **Install Chrome extension…** in the Mac app (or **Copy folder path & open Chrome** in the installer). Turn on **Developer mode**, click **Load unpacked**, then press **⇧⌘G** and paste the copied path. Pin the extension.
 
 > **About the one-click installer:** the button above downloads a ready-to-run installer. It installs all local components with one button. macOS still asks you to approve Accessibility, and Chrome requires the final **Load unpacked** step until a Chrome Web Store version exists.
 >
-> **Signing:** `0.1.1` uses a persistent self-signed identity, not Apple notarization. Updates reuse the same identity to retain Accessibility approval. Upgrading from `0.1.0` needs one renewal, guided by the app. macOS may block its first launch. See [installation help](docs/INSTALL.md#macos-blocked-the-installer) for Apple's approval steps; the installer never disables Gatekeeper.
+> **Signing:** `0.1.2` uses a persistent self-signed identity, not Apple notarization. Updates reuse the same identity to retain Accessibility approval. Upgrading from `0.1.0` needs one renewal, guided by the app. macOS may block its first launch. See [installation help](docs/INSTALL.md#macos-blocked-the-installer) for Apple's approval steps; the installer never disables Gatekeeper.
 
-Prefer a ZIP? [Download the Mac installer ZIP](https://github.com/00cyre/openlocker/releases/download/v0.1.1/OpenLocker-0.1.1-macOS.zip). [Checksums](https://github.com/00cyre/openlocker/releases/download/v0.1.1/SHA256SUMS.txt) are included with the release.
+Prefer a ZIP? [Download the Mac installer ZIP](https://github.com/00cyre/openlocker/releases/download/v0.1.2/OpenLocker-0.1.2-macOS.zip). [Checksums](https://github.com/00cyre/openlocker/releases/download/v0.1.2/SHA256SUMS.txt) are included with the release.
+
+## Automatic unlock and updates
+
+Opening a locked site or app brings up Touch ID automatically. Cancel to keep it locked; use the visible button to retry.
+
+Both the Mac menu and the extension offer **Update to…** when a newer release is available. Click once to verify and install it; the app relaunches or the extension reloads. If apps are protected, Touch ID confirms the Mac app update. Install 0.1.2 once to get these controls. Source-loaded extensions must first switch to the folder prepared by **Install Chrome extension…**.
 
 ## Quietly local
 
 - **Your fingerprint stays with macOS.** OpenLocker receives only the authentication result. No password or Apple Watch fallback.
-- **Your choices stay on your Mac.** Protected apps and domains are stored locally. No telemetry, accounts, remote code, or subscriptions.
+- **Your choices stay on your Mac.** Protected apps and domains are stored locally. No telemetry, accounts, or subscriptions. Update checks fetch public GitHub release information; installation requires your action.
 - **No destructive locking.** Mac apps stay in place behind input-blocking blur panels. Chrome locking replaces the open page, so save browser drafts first.
 - **You're in control.** Lock everything immediately from either menu. Mac app locking runs while the menu-bar app is open; **Start at login** is optional.
 

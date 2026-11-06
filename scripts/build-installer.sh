@@ -9,7 +9,6 @@ OPENLOCKER_STAGE="$OPENLOCKER_ROOT/build/installer"
 OPENLOCKER_APP="$OPENLOCKER_STAGE/Install OpenLocker.app"
 mkdir -p "$OPENLOCKER_APP/Contents/MacOS" "$OPENLOCKER_APP/Contents/Resources/Payload" "$OPENLOCKER_ROOT/dist"
 # Ship native code for both Mac architectures. No compiler is needed by users.
-OPENLOCKER_ARCHS="arm64 x86_64" bash scripts/build-native.sh
 OPENLOCKER_ARCHS="arm64 x86_64" OPENLOCKER_DESKTOP_DEST="$OPENLOCKER_ROOT/build/release-desktop/OpenLocker.app" bash scripts/build-mac-app.sh
 for OPENLOCKER_ARCH in arm64 x86_64; do
   xcrun swiftc -O -swift-version 5 -framework AppKit -framework CryptoKit -framework Security \
@@ -30,12 +29,12 @@ ditto build/release-desktop/OpenLocker.app "$OPENLOCKER_APP/Contents/Resources/P
 openlocker_sign "$OPENLOCKER_APP" cc.openlocker.installer
 codesign --verify --deep --strict "$OPENLOCKER_APP"
 cp installer/Start-Here.html "$OPENLOCKER_STAGE/Start Here.html"
-hdiutil create -ov -format UDZO -volname 'OpenLocker 0.1.1' \
-  -srcfolder "$OPENLOCKER_STAGE" "$OPENLOCKER_ROOT/dist/OpenLocker-0.1.1-macOS.dmg"
+hdiutil create -ov -format UDZO -volname 'OpenLocker 0.1.2' \
+  -srcfolder "$OPENLOCKER_STAGE" "$OPENLOCKER_ROOT/dist/OpenLocker-0.1.2-macOS.dmg"
 if [[ "${OPENLOCKER_RELEASE:-0}" == 1 ]]; then
-  openlocker_sign "$OPENLOCKER_ROOT/dist/OpenLocker-0.1.1-macOS.dmg" cc.openlocker.disk
+  openlocker_sign "$OPENLOCKER_ROOT/dist/OpenLocker-0.1.2-macOS.dmg" cc.openlocker.disk
 fi
 # Useful for environments that prefer extracting a zip rather than mounting a disk.
-ditto -c -k --sequesterRsrc --keepParent "$OPENLOCKER_APP" "$OPENLOCKER_ROOT/dist/OpenLocker-0.1.1-macOS.zip"
-shasum -a 256 dist/OpenLocker-0.1.1-macOS.dmg dist/OpenLocker-0.1.1-macOS.zip | sed 's|dist/||' > dist/SHA256SUMS.txt
-printf '\nInstaller ready: dist/OpenLocker-0.1.1-macOS.dmg\n'
+ditto -c -k --sequesterRsrc --keepParent "$OPENLOCKER_APP" "$OPENLOCKER_ROOT/dist/OpenLocker-0.1.2-macOS.zip"
+shasum -a 256 dist/OpenLocker-0.1.2-macOS.dmg dist/OpenLocker-0.1.2-macOS.zip | sed 's|dist/||' > dist/SHA256SUMS.txt
+printf '\nInstaller ready: dist/OpenLocker-0.1.2-macOS.dmg\n'

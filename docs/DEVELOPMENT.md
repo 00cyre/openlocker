@@ -10,7 +10,7 @@ cd openlocker
 npm run build:installer
 ```
 
-Open `dist/OpenLocker-0.1.1-macOS.dmg` and run the installer, or build individual pieces:
+Open `dist/OpenLocker-0.1.2-macOS.dmg` and run the installer, or build individual pieces:
 
 ```sh
 npm run build:mac          # Mac menu-bar app in build/desktop/
@@ -65,9 +65,9 @@ After a matching successful response, the worker checks that the tab and lock ge
 
 Push a version tag matching `package.json`. The release workflow builds, tests, and publishes these assets only with the pinned persistent signing identity. For local release builds, use `npm run build:release` with the existing signing keychain configured; ad-hoc fallback is rejected:
 
-- `OpenLocker-0.1.1-macOS.dmg`
-- `OpenLocker-0.1.1-macOS.zip`
-- `OpenLocker-0.1.1-source.zip`
+- `OpenLocker-0.1.2-macOS.dmg`
+- `OpenLocker-0.1.2-macOS.zip`
+- `OpenLocker-0.1.2-source.zip`
 - `SHA256SUMS.txt`
 
 The [manual checklist](TESTING.md) covers the hardware and OS integration that automated checks cannot establish. Record unperformed checks in release notes.
@@ -77,3 +77,9 @@ Official references: [Chrome native messaging](https://developer.chrome.com/docs
 ## Accessibility renewal
 
 `CodeIdentity` validates replacements against the installed app's designated requirement using Security.framework. Only an identity-changing update writes a pending-renewal marker, inside the install transaction. The app's single setup window polls actual `AXIsProcessTrusted()`, offers an explicit app-scoped `tccutil reset Accessibility cc.openlocker.mac`, and resumes the pending action when trust is granted. The reset never grants access, never runs merely because polling returns false, and never runs again after a successful reset in the session. Existing 0.1.0 installs migrate once. A previously approved source build is also detected via the saved approval state.
+
+## Updates and Chrome setup
+
+`ReleaseUpdater` validates stable GitHub release metadata, downloads the fixed repository's DMG, checks its pinned certificate before mounting read-only, and verifies the copied installer and version before execution. The installer exposes Chrome-only and parent-waiting app update modes backed by the same rollback transaction and an exclusive install lock. The Mac app bundles the extension and helper for offline Chrome setup. `installation.json` marks the managed folder; source checkouts must migrate once and are never overwritten. Chrome storage remains keyed to the fixed extension ID.
+
+The extension's pending authentication tracks its initiating tab. Returning from Touch ID to the same tab does not advance its invalidation generation; real tab switches, locking, or navigation still do. Automatic prompting is limited to a visible, focused lock page and never loops on system-dialog focus changes.

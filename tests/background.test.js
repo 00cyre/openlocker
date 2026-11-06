@@ -64,7 +64,7 @@ test('missing helper and mismatched request IDs never unlock', async () => {
 test('web page cannot mutate rules or ask for someone else’s grant', async () => {
   const h = await harness();
   const contentSender = { id: ID, url: 'https://example.com/private', frameId: 0, tab: { id: 1 } };
-  for (const type of ['UNLOCK', 'LOCK_DOMAIN', 'REMOVE_DOMAIN', 'LOCK_ALL', 'HELPER_STATUS']) assert.equal((await h.send({ type, domain: 'example.com' }, contentSender)).ok, false, type);
+  for (const type of ['UNLOCK', 'LOCK_DOMAIN', 'REMOVE_DOMAIN', 'LOCK_ALL', 'HELPER_STATUS', 'UPDATE_STATUS', 'INSTALL_UPDATE']) assert.equal((await h.send({ type, domain: 'example.com' }, contentSender)).ok, false, type);
   const guard = await h.send({ type: 'GUARD', tabId: 2 }, contentSender);
   assert.equal(guard.allowed, false);
   assert.ok(guard.redirect.startsWith(base));
@@ -150,4 +150,44 @@ test('unlocking a parent domain also authorizes its protected child in that tab'
   const state = await h.send({ type: 'STATUS' }, h.sender('settings.html'));
   assert.equal(state.unlocked, true);
   assert.equal((await h.send({ type: 'GUARD' }, { id: ID, frameId: 0, url: h.tabMap.get(1).url, tab: { id: 1 } })).allowed, true);
+});
+
+test('returning focus from Touch ID to the same tab does not cancel its unlock', async () => {
+  let resolve;
+  const h = await harness({ native: (_, message) => new Promise(done => { resolve = () => done({ id: message.id, success: true }); }) });
+  const unlocking = h.send({ type: 'UNLOCK' });
+  await new Promise(done => setImmediate(done));
+  h.api.windows.onFocusChanged.fire(h.api.windows.WINDOW_ID_NONE);
+  h.api.windows.onFocusChanged.fire(1);
+  await h.send({ type: 'STATUS' }, h.sender('settings.html'));
+  resolve();
+  const result = await unlocking;
+  assert.equal(result.ok, true, result.error);
+  assert.equal(h.tabMap.get(1).url, 'https://example.com/private');
+});
+
+test('switching away and back during Touch ID still cancels the unlock', async () => {
+  let resolve;
+  const h = await harness({ native: (_, message) => new Promise(done => { resolve = () => done({ id: message.id, success: true }); }) });
+  const unlocking = h.send({ type: 'UNLOCK' });
+  await new Promise(done => setImmediate(done));
+  h.api.tabs.onActivated.fire({ tabId: 2 });
+  h.api.tabs.onActivated.fire({ tabId: 1 });
+  await h.send({ type: 'STATUS' }, h.sender('settings.html'));
+  resolve();
+  assert.equal((await unlocking).ok, false);
+  assert.equal(h.rules().sessionRules.length, 0);
+});
+
+test('navigating away and back during Touch ID cancels the old unlock', async () => {
+  let resolve;
+  const h = await harness({ native: (_, message) => new Promise(done => { resolve = () => done({ id: message.id, success: true }); }) });
+  const unlocking = h.send({ type: 'UNLOCK' });
+  await new Promise(done => setImmediate(done));
+  h.api.tabs.onUpdated.fire(1, { url: 'https://other.test/' });
+  h.api.tabs.onUpdated.fire(1, { url: h.tabMap.get(1).url });
+  await h.send({ type: 'STATUS' }, h.sender('settings.html'));
+  resolve();
+  assert.equal((await unlocking).ok, false);
+  assert.equal(h.rules().sessionRules.length, 0);
 });

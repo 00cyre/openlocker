@@ -1,5 +1,6 @@
 import AppKit
 import Foundation
+import Darwin
 
 final class InstallerDelegate: NSObject, NSApplicationDelegate {
     private var window: NSWindow!
@@ -66,7 +67,7 @@ final class InstallerDelegate: NSObject, NSApplicationDelegate {
         text("✓  Apple Silicon + Intel\n✓  No Terminal, Xcode, or admin password\n✓  No accounts or cloud")
         button("Install OpenLocker", action: #selector(install), primary: true)
         text("Mac app locking needs Accessibility permission. Chrome will ask you to load the extension once. We'll guide you through both.", size: 12)
-        text("Version 0.1.1 · macOS 13+ · Google Chrome 120+", size: 11)
+        text("Version 0.1.2 · macOS 13+ · Google Chrome 120+", size: 11)
     }
     @objc private func install() {
         if !NSRunningApplication.runningApplications(withBundleIdentifier: "cc.openlocker.mac").isEmpty {
@@ -121,6 +122,59 @@ final class InstallerDelegate: NSObject, NSApplicationDelegate {
     }
     @objc private func showFolder() {
         if let result { NSWorkspace.shared.activateFileViewerSelecting([result.extensionDirectory]) }
+    }
+}
+// Updates use the same transaction as the graphical installer. The caller has
+// already verified this entire bundle against the pinned release certificate.
+if CommandLine.arguments.contains("--update-chrome") || CommandLine.arguments.contains("--update-app") {
+    let desktop = CommandLine.arguments.contains("--update-app")
+    if desktop {
+        // The app launches this process before terminating. Wait for its exact
+        // instance to exit; do not kill it or bypass its Touch ID confirmation.
+        guard let flag = CommandLine.arguments.firstIndex(of: "--parent-pid"),
+              CommandLine.arguments.indices.contains(flag + 1), let pid = Int32(CommandLine.arguments[flag + 1]), pid > 1 else { exit(2) }
+        let deadline = Date().addingTimeInterval(15)
+        while kill(pid, 0) == 0 && Date() < deadline { Thread.sleep(forTimeInterval: 0.1) }
+        guard kill(pid, 0) != 0,
+              NSRunningApplication.runningApplications(withBundleIdentifier: "cc.openlocker.mac").allSatisfy({ $0.isTerminated }) else { exit(3) }
+    }
+    let temporary = Bundle.main.bundleURL.deletingLastPathComponent()
+    func cleanupUpdate() {
+        if temporary.lastPathComponent.hasPrefix("openlocker-update-"),
+           temporary.deletingLastPathComponent().standardizedFileURL == FileManager.default.temporaryDirectory.standardizedFileURL {
+            try? FileManager.default.removeItem(at: temporary)
+        }
+    }
+    do {
+        guard let resources = Bundle.main.resourceURL else { throw InstallFailure(message: "Update resources are missing.") }
+        let result = try InstallerEngine(payload: resources.appendingPathComponent("Payload"), home: FileManager.default.homeDirectoryForCurrentUser)
+            .install(scope: desktop ? .all : .chrome)
+        cleanupUpdate()
+        if desktop {
+            NSWorkspace.shared.openApplication(at: result.desktopApp, configuration: NSWorkspace.OpenConfiguration()) { _, error in
+                if error != nil {
+                    let alert = NSAlert(); alert.messageText = "Update installed"
+                    alert.informativeText = "Open OpenLocker from your Applications folder to resume app protection."; alert.runModal()
+                }
+                exit(0)
+            }
+            RunLoop.main.run()
+        }
+        exit(0)
+    } catch {
+        if desktop {
+            let alert = NSAlert(); alert.messageText = "OpenLocker couldn't finish updating"
+            alert.informativeText = "Your protected app list is preserved. Reopen OpenLocker and try again. " + error.localizedDescription
+            alert.runModal()
+            if let flag = CommandLine.arguments.firstIndex(of: "--previous-app"), CommandLine.arguments.indices.contains(flag + 1) {
+                let previous = URL(fileURLWithPath: CommandLine.arguments[flag + 1])
+                if NSDictionary(contentsOf: previous.appendingPathComponent("Contents/Info.plist"))?["CFBundleIdentifier"] as? String == "cc.openlocker.mac" {
+                    NSWorkspace.shared.openApplication(at: previous, configuration: NSWorkspace.OpenConfiguration()) { _, _ in exit(1) }
+                    RunLoop.main.run()
+                }
+            }
+        }
+        exit(1)
     }
 }
 let delegate = InstallerDelegate()
