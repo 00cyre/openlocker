@@ -37,3 +37,11 @@ The Mac app and extension request public release metadata from GitHub. Updates d
 Installation is serialized, rejects older helper versions, and preserves the protected app list. Chrome-only setup and updates replace only the extension and its helper. They never replace or restart the Mac app. A desktop update requires Touch ID when apps are protected and briefly stops protection while the app relaunches.
 
 Chrome setup prepares a stable unpacked extension folder and registers its native host for the compiled extension ID. Chrome's initial extension approval remains a user action. Web pages cannot request updates, and repository-loaded extensions must switch to the managed folder once before their Update button can install releases.
+
+## Update recovery
+
+The domain list has a profile-local recovery copy. Startup reads it or surviving persistent rules before rebuilding protection, so a missing settings key cannot silently erase those rules. An intentionally empty list remains empty. Removing a protected domain still requires Touch ID and updates both copies.
+
+Chrome unloads extension-origin tabs during reloads ([Chromium issue 41189391](https://issues.chromium.org/issues/41189391)). OpenLocker checkpoints locked destinations and placement continuously. Its Update button moves lock pages to empty, local `about:blank` placeholders before reloading, then restores the lock pages in the same tabs. Abrupt manual reloads recreate missing lock pages. Recovery never adds an allow rule or loads a protected website before authentication. Ordinary worker restarts and deliberate tab closes do not trigger recovery.
+
+Mac update checkpoints inventory running protected apps without persisting unlock grants. A short-lived, single-use handoff can relaunch only a missing app still present at the same path in the protected list, with its bundle ID checked. Surviving app processes and windows are untouched. The new locker starts locked. This cannot recover unsaved documents from an unrelated app crash; the app itself controls document restoration.

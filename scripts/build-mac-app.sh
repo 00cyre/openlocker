@@ -22,7 +22,7 @@ for OPENLOCKER_ARCH in ${OPENLOCKER_ARCHS:-$(uname -m)}; do
   OPENLOCKER_BINARY="$OPENLOCKER_ROOT/build/OpenLockerMac-$OPENLOCKER_ARCH"
   xcrun swiftc -O -swift-version 5 -framework AppKit -framework ApplicationServices -framework LocalAuthentication -framework ServiceManagement -framework Security -framework CryptoKit \
     -target "$OPENLOCKER_ARCH-apple-macosx13.0" \
-    native/Config.swift installer/InstallerEngine.swift shared/CodeIdentity.swift shared/ReleaseUpdater.swift macapp/AccessibilityApproval.swift macapp/AccessibilitySetup.swift macapp/ActivationFlow.swift macapp/LockPolicy.swift macapp/WindowShield.swift macapp/WindowObserver.swift macapp/WindowPicker.swift macapp/main.swift \
+    native/Config.swift installer/InstallerEngine.swift shared/CodeIdentity.swift shared/ReleaseUpdater.swift shared/UpdateRecovery.swift macapp/AccessibilityApproval.swift macapp/AccessibilitySetup.swift macapp/ActivationFlow.swift macapp/LockPolicy.swift macapp/WindowShield.swift macapp/WindowObserver.swift macapp/WindowPicker.swift macapp/main.swift \
     -o "$OPENLOCKER_BINARY"
   OPENLOCKER_MAC_BINARIES+=("$OPENLOCKER_BINARY")
 done

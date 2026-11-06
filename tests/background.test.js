@@ -1,5 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { LockedTabs } from '../extension/locked-tabs.js';
 
 const ID = 'abcdefghijklmnopabcdefghijklmnop';
 const base = `chrome-extension://${ID}/`;
@@ -20,18 +21,21 @@ function networkRule(rules, { url, type = 'main_frame', tabId }) {
   ).sort((a, b) => b.priority - a.priority)[0];
 }
 function storage(initial = {}) {
-  let data = initial;
+  let data = copy(initial);
   return { async get(defaults) { return copy({ ...defaults, ...data }); }, async set(value) { Object.assign(data, copy(value)); }, async setAccessLevel() {} };
 }
 let counter = 0;
-async function harness({ domains = ['example.com'], grants = [], tabs, native, network = false, idleSeconds = 0 } = {}) {
-  let dynamic = [];
+async function harness({ domains = ['example.com'], grants = [], tabs, native, network = false, idleSeconds = 0, localData, dynamicRules = [], recoveryReady = false } = {}) {
+  let dynamic = copy(dynamicRules);
   let sessionRules = [];
   let detectionInterval;
+  let reloads = 0;
   const tabMap = new Map((tabs || [{ id: 1, active: true, url: `${base}locked.html#https://example.com/private`, windowId: 1 }]).map(t => [t.id, copy(t)]));
+  let nextTab = Math.max(0, ...tabMap.keys()) + 1;
+  let nextWindow = Math.max(0, ...[...tabMap.values()].map(t => t.windowId)) + 1;
   const api = {
-    runtime: { id: ID, getURL: path => base + path, onMessage: event(), onStartup: event(), onInstalled: event(), openOptionsPage: async () => {}, sendNativeMessage: native || (async (_, message) => ({ id: message.id, success: true, available: true })) },
-    storage: { local: storage({ domains }), session: storage({ grants }) },
+    runtime: { id: ID, reload() { reloads++; }, getURL: path => base + path, onMessage: event(), onStartup: event(), onInstalled: event(), openOptionsPage: async () => {}, sendNativeMessage: native || (async (_, message) => ({ id: message.id, success: true, available: true })) },
+    storage: { local: storage(localData ?? { domains }), session: storage({ grants, recoveryReady }) },
     declarativeNetRequest: {
       getDynamicRules: async () => copy(dynamic),
       getSessionRules: async () => copy(sessionRules),
@@ -39,6 +43,7 @@ async function harness({ domains = ['example.com'], grants = [], tabs, native, n
       updateSessionRules: async ({ addRules }) => { sessionRules = copy(addRules); }
     },
     tabs: {
+      create: async data => { const tab = { id: nextTab++, windowId: 1, index: 0, active: false, ...data }; tabMap.set(tab.id, tab); return copy(tab); },
       query: async (query = {}) => [...tabMap.values()].filter(t => (!query.active || t.active) && (!query.windowId || t.windowId === query.windowId)).map(copy),
       get: async id => { if (!tabMap.has(id)) throw Error('No tab'); return copy(tabMap.get(id)); },
       update: async (id, data) => {
@@ -49,9 +54,13 @@ async function harness({ domains = ['example.com'], grants = [], tabs, native, n
         }
         Object.assign(tabMap.get(id), data); return copy(tabMap.get(id));
       },
-      onActivated: event(), onUpdated: event(), onRemoved: event()
+      onActivated: event(), onUpdated: event(), onRemoved: event(), onMoved: event(), onAttached: event(), onDetached: event()
     },
-    windows: { WINDOW_ID_NONE: -1, onFocusChanged: event() },
+    windows: { WINDOW_ID_NONE: -1, onFocusChanged: event(), create: async ({ url }) => {
+      const id = nextWindow++;
+      const tab = await api.tabs.create({ url, windowId: id });
+      return { id, tabs: [tab] };
+    } },
     webNavigation: { onCommitted: event() },
     idle: {
       onStateChanged: event(),
@@ -63,10 +72,11 @@ async function harness({ domains = ['example.com'], grants = [], tabs, native, n
   await import(`../extension/background.js?test=${counter++}`);
   const sender = (page = 'locked.html', tabId = 1) => ({ id: ID, frameId: 0, url: page === 'locked.html' ? tabMap.get(tabId).url : `${base}${page}`, tab: copy(tabMap.get(tabId)) });
   const send = (message, source = sender()) => new Promise(resolve => api.runtime.onMessage.listeners[0](message, source, resolve));
-  await send({ type: 'STATUS' });
+  await send({ type: 'STATUS' }, sender('settings.html', tabMap.keys().next().value));
   return {
     api, send, sender, tabMap, rules: () => ({ dynamic, sessionRules }),
     interval: () => detectionInterval,
+    reloads: () => reloads,
     advance(seconds, notify = true) {
       const before = idleSeconds; idleSeconds += seconds;
       if (notify && before < detectionInterval && idleSeconds >= detectionInterval) api.idle.onStateChanged.fire('idle');
@@ -82,6 +92,145 @@ test('successful native authentication unlocks a domain across tabs', async () =
   assert.equal(h.tabMap.get(1).url, 'https://example.com/private');
   assert.equal(h.rules().sessionRules[0].condition.tabIds, undefined);
   assert.deepEqual(h.rules().sessionRules[0].condition.requestDomains, ['example.com']);
+});
+test('reload restores locked tabs closed by Chrome without losing duplicates or protected sites', async () => {
+  const locked = `${base}locked.html#http://127.0.0.1:4173/private?draft=1#section`;
+  const h = await harness({ domains: ['127.0.0.1'], tabs: [
+    { id: 1, active: true, url: locked, windowId: 1, index: 0, pinned: true },
+    { id: 2, active: false, url: locked, windowId: 1, index: 1, pinned: false },
+    { id: 3, active: false, url: 'https://unrelated.test/', windowId: 1, index: 2 }
+  ] });
+  // Chromium closes extension-origin tabs when unloading the extension. The
+  // next worker only sees the unrelated web tab; local storage/rules survive.
+  // https://issues.chromium.org/issues/41189391
+  const reloaded = await harness({ localData: await h.api.storage.local.get({}), dynamicRules: h.rules().dynamic,
+    tabs: [...h.tabMap.values()].filter(t => !t.url.startsWith(base)) });
+  reloaded.api.runtime.onInstalled.fire({ reason: 'update' });
+  const status = await reloaded.send({ type: 'STATUS' }, reloaded.sender('settings.html', 3));
+  assert.deepEqual(status.domains, ['127.0.0.1']);
+  assert.equal([...reloaded.tabMap.values()].filter(t => t.url === locked).length, 2, 'Both locked tabs must return, including identical URLs');
+  assert.equal(reloaded.tabMap.get(3).url, 'https://unrelated.test/');
+});
+test('missing domain settings recover from persistent protection rules before startup rewrites them', async () => {
+  const h = await harness({ domains: ['127.0.0.1', 'example.com'] });
+  const reloaded = await harness({ localData: {}, dynamicRules: h.rules().dynamic });
+  const status = await reloaded.send({ type: 'STATUS' }, reloaded.sender('settings.html'));
+  assert.deepEqual(status.domains, ['127.0.0.1', 'example.com']);
+  assert.equal(reloaded.rules().dynamic.length, 4);
+});
+test('backup recovers a missing domain list, but an intentional empty list remains empty', async () => {
+  for (const domains of [undefined, []]) {
+    const localData = { domainsBackup: { version: 1, domains: ['example.com'] } };
+    if (domains) localData.domains = domains;
+    const h = await harness({ localData });
+    const status = await h.send({ type: 'STATUS' }, h.sender('settings.html'));
+    assert.deepEqual(status.domains, domains || ['example.com']);
+  }
+});
+test('rule recovery supports the full 500-domain limit despite duplicate rule entries', async () => {
+  const domains = Array.from({ length: 500 }, (_, index) => `site${index}.test`).sort();
+  const h = await harness({ domains });
+  const recovered = await harness({ localData: {}, dynamicRules: h.rules().dynamic });
+  assert.deepEqual((await recovered.api.storage.local.get({})).domains, domains);
+});
+test('ordinary worker restart or deliberate tab close does not resurrect tabs', async () => {
+  const h = await harness();
+  const saved = await h.api.storage.local.get({});
+  const worker = await harness({ localData: saved, tabs: [], recoveryReady: true });
+  assert.equal(worker.tabMap.size, 0);
+  const another = await harness();
+  another.tabMap.delete(1);
+  another.api.tabs.onRemoved.fire(1, { windowId: 1, isWindowClosing: false });
+  await another.send({ type: 'STATUS' }, another.sender('settings.html'));
+  const reloaded = await harness({ localData: await another.api.storage.local.get({}), tabs: [] });
+  assert.equal(reloaded.tabMap.size, 0);
+});
+test('reload restores a window that contained only locked tabs, preserving pinning', async () => {
+  const locked = `${base}locked.html#https://example.com/private`;
+  const h = await harness({ tabs: [{ id: 4, url: locked, windowId: 9, index: 0, active: true, pinned: true },
+    { id: 5, url: locked, windowId: 9, index: 1, active: false, pinned: false }] });
+  const restored = await harness({ tabs: [], localData: await h.api.storage.local.get({}) });
+  const tabs = [...restored.tabMap.values()];
+  assert.equal(tabs.length, 2);
+  assert.equal(tabs[0].windowId, tabs[1].windowId);
+  assert.equal(tabs[0].pinned, true);
+  assert.equal(tabs[0].url, locked);
+});
+test('recovery matches restored tab occurrences and never overwrites a surviving navigation', async () => {
+  const locked = `${base}locked.html#https://example.com/private`;
+  const h = await harness();
+  const saved = await h.api.storage.local.get({});
+  const restored = await harness({ localData: saved, tabs: [{ id: 50, url: locked, windowId: 20, index: 0 }] });
+  assert.equal(restored.tabMap.size, 1);
+  const navigated = await harness({ localData: saved, tabs: [{ id: 1, url: 'https://unrelated.test/', windowId: 1, index: 0 }] });
+  assert.equal(navigated.tabMap.size, 1);
+  assert.equal(navigated.tabMap.get(1).url, 'https://unrelated.test/');
+});
+test('button-driven update keeps locked tab IDs and protected settings through reload', async () => {
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = async url => ({ ok: true, json: async () => url.startsWith(base) ? { managed: true } : {
+    tag_name: 'v0.9.0', draft: false, prerelease: false,
+    assets: [{ name: 'OpenLocker-0.9.0-macOS.dmg', size: 1000,
+      browser_download_url: 'https://github.com/00cyre/openlocker/releases/download/v0.9.0/OpenLocker-0.9.0-macOS.dmg' }]
+  } });
+  try {
+    const h = await harness({ native: async (_, m) => ({ id: m.id, success: true, supportsUpdates: true, version: '0.9.0' }) });
+    h.api.runtime.getManifest = () => ({ version: '0.1.6' });
+    const result = await h.send({ type: 'INSTALL_UPDATE' }, h.sender('settings.html'));
+    assert.equal(result.ok, true, result.error);
+    assert.equal(result.updated, true);
+    assert.equal(h.reloads(), 1, 'The background must finish the reload even if the popup has closed');
+    assert.ok(h.tabMap.get(1).url.startsWith('about:blank#openlocker-'), 'The tab must leave the extension origin before reload');
+    const surviving = [...h.tabMap.values()].filter(tab => !tab.url.startsWith(base));
+    const reloaded = await harness({ localData: await h.api.storage.local.get({}), tabs: surviving });
+    assert.equal(reloaded.tabMap.size, 1);
+    assert.equal(reloaded.tabMap.get(1).url, `${base}locked.html#https://example.com/private`);
+    assert.deepEqual((await reloaded.send({ type: 'STATUS' })).domains, ['example.com']);
+    assert.equal(reloaded.rules().sessionRules.length, 0, 'Recovery never authenticates a domain');
+    const closed = await harness({ native: async (_, m) => ({ id: m.id, success: true, supportsUpdates: true, version: '0.9.0' }) });
+    closed.api.runtime.getManifest = () => ({ version: '0.1.6' });
+    closed.api.runtime.onMessage.listeners[0]({ type: 'INSTALL_UPDATE' }, closed.sender('popup.html'), () => { throw Error('Popup closed'); });
+    for (let attempt = 0; attempt < 100 && !closed.reloads(); attempt++) await new Promise(resolve => setImmediate(resolve));
+    assert.equal(closed.reloads(), 1, 'A disconnected popup must not strand parked tabs');
+  } finally { globalThis.fetch = originalFetch; }
+});
+test('failed restoration keeps its recovery record and succeeds once the window API recovers', async () => {
+  const h = await harness();
+  const saved = await h.api.storage.local.get({});
+  h.tabMap.clear();
+  const createWindow = h.api.windows.create;
+  h.api.windows.create = async () => { throw Error('Window creation temporarily unavailable'); };
+  const journal = new LockedTabs(h.api, base);
+  await journal.restore(['example.com']);
+  assert.deepEqual((await h.api.storage.local.get({})).lockedTabs, saved.lockedTabs);
+  h.api.windows.create = createWindow;
+  await journal.restore(['example.com']);
+  assert.equal(h.tabMap.size, 1);
+  await journal.restore(['example.com']);
+  assert.equal(h.tabMap.size, 1, 'Retry must not duplicate successful recovery');
+});
+test('closing a tab during update preparation does not resurrect it or erase settings', async () => {
+  const h = await harness();
+  const update = h.api.tabs.update;
+  h.api.tabs.update = async (id, data) => {
+    if (data.url.startsWith('about:blank')) { h.tabMap.delete(id); throw Error('Tab closed'); }
+    return update(id, data);
+  };
+  const journal = new LockedTabs(h.api, base);
+  await assert.rejects(journal.prepareReload(['example.com']), /Tab closed/);
+  assert.equal(h.tabMap.size, 0);
+  const saved = await h.api.storage.local.get({});
+  assert.deepEqual(saved.domains, ['example.com']);
+  assert.deepEqual(saved.lockedTabs, []);
+});
+test('failed rule changes preserve both website-list copies', async () => {
+  const h = await harness();
+  h.api.declarativeNetRequest.updateDynamicRules = async () => { throw Error('Rule update failed'); };
+  const result = await h.send({ type: 'LOCK_DOMAIN', domain: 'new.test' }, h.sender('settings.html'));
+  assert.equal(result.ok, false);
+  const saved = await h.api.storage.local.get({});
+  assert.deepEqual(saved.domains, ['example.com']);
+  assert.deepEqual(saved.domainsBackup.domains, ['example.com']);
 });
 test('successful Touch ID reaches a localhost page instead of redirecting back to the lock screen', async () => {
   const url = 'http://127.0.0.1:4173/private';

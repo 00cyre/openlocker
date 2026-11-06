@@ -73,3 +73,13 @@ Current automated additions: universal Apple Silicon/Intel builds, code-signatur
 - Open a locked app: one Touch ID prompt appears with blur/input protection behind it. Cancel and verify a manual retry is available.
 - Exercise an app update with and without protected apps; check the fingerprint confirmation when protected, relaunch, and saved settings. Exercise an extension-only update while the Mac app is running; it must not replace that app. Confirm offline/download/signature failures leave the existing installation and lock rules intact.
 - Automated checks cover the focus-return regression, no-loop web prompts, metadata validation, unsigned/tampered DMG rejection, real signed staging, helper protocol, Chrome-only installs, bundled app setup, and signing identity continuity.
+
+## Update continuity
+
+- [ ] Keep two locked tabs with identical URLs, a pinned locked tab, and a window containing only locked tabs. Use the extension Update button: retain tab IDs, ordering, pinning, and destinations; keep protection and require Touch ID after reload.
+- [ ] Repeat with Chrome’s manual Reload: missing lock pages/window return once, including duplicates. A tab deliberately closed before reloading must stay closed. Surviving unrelated tabs must stay untouched.
+- [ ] Add and remove protected sites, then update/reload repeatedly. The latest list survives; removing every site remains an intentional empty list.
+- [ ] Update the Mac app with a protected multi-window app open and unsaved sample text. Target processes/windows remain present. Only OpenLocker restarts; the protected list remains intact. Authentication is required again.
+- [ ] Cancel or fail an update download: keep settings and locked tabs. Test missing windows, a tab closed during update, and a failed tab restoration without losing the recovery record.
+
+Local automation includes `python3 tests/update_windows.py` for actual disposable AppKit windows; Chrome reload behavior is modeled in regression tests against the documented unload behavior. Live Chrome UI and physical fingerprints still require an interactive acceptance pass.

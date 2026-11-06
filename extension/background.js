@@ -1,11 +1,15 @@
 import { updateStatus } from './updates.js';
+import { loadProtectedSites, saveProtectedSites } from './protected-sites.js';
+import { LockedTabs } from './locked-tabs.js';
 import { HOST, MAX_DOMAINS, IDLE_SECONDS, normalizeDomain, protectedDomain, domainRules, grantRule, lockedURL, originalURL, trustedPage, webURL, matches } from './core.js';
 
 const base = chrome.runtime.getURL('');
+const lockedTabs = new LockedTabs(chrome, base);
 let tail = Promise.resolve();
 let generation = 0;
 let authenticating = false;
 let pendingUnlock = null;
+let installingUpdate = false;
 const serial = task => {
   const result = tail.then(task);
   tail = result.catch(error => console.error('OpenLocker:', error.message));
@@ -31,6 +35,12 @@ async function setGrants(grants) {
 
 async function shieldTabs(domains, grants = []) {
   const tabs = await chrome.tabs.query({});
+  // Save destinations before replacing pages, including abrupt manual reloads.
+  await lockedTabs.remember(domains, tabs.map(tab => {
+    const url = tab.pendingUrl || tab.url;
+    return protectedDomain(url, domains) && !allows(url, grants)
+      ? { ...tab, pendingUrl: undefined, url: lockedURL(base, url) } : tab;
+  }));
   await Promise.all(tabs.map(async tab => {
     const url = tab.pendingUrl || tab.url;
     const domain = protectedDomain(url, domains);
@@ -56,7 +66,7 @@ async function expireIfInactive() {
 const ready = serial(async () => {
   await chrome.storage.local.setAccessLevel({ accessLevel: 'TRUSTED_CONTEXTS' });
   await chrome.storage.session.setAccessLevel({ accessLevel: 'TRUSTED_CONTEXTS' });
-  const { domains } = await local();
+  const domains = await loadProtectedSites(chrome);
   const { grants } = await session();
   // A worker suspension is not a browser restart. Preserve domain sessions
   // while the user is active, including background tabs and other windows.
@@ -65,6 +75,10 @@ const ready = serial(async () => {
   const keep = active ? grants.filter(g => g.tabId === undefined && domains.includes(g.domain)) : [];
   await syncDomains(domains);
   await setGrants(keep);
+  const { recoveryReady } = await chrome.storage.session.get({ recoveryReady: false });
+  // Ordinary worker suspension must not resurrect a tab the user just closed.
+  if (!recoveryReady) await lockedTabs.restore(domains);
+  await chrome.storage.session.set({ recoveryReady: true });
   await shieldTabs(domains, keep);
 });
 
@@ -90,11 +104,12 @@ async function snapshot(tabId) {
   await expireIfInactive();
   const { domains } = await local();
   const { grants } = await session();
+  await lockedTabs.remember(domains);
   let tab;
   if (Number.isInteger(tabId)) { try { tab = await chrome.tabs.get(tabId); } catch {} }
   const url = originalURL(tab?.pendingUrl || tab?.url, base);
   const domain = protectedDomain(url, domains);
-  return { domains, url, domain, unlocked: allows(url, grants), extensionId: chrome.runtime.id };
+  return { domains, url, domain, unlocked: allows(url, grants), updating: installingUpdate, extensionId: chrome.runtime.id };
 }
 
 async function handle(message, sender) {
@@ -115,21 +130,30 @@ async function handle(message, sender) {
   }
   if (!trustedPage(sender, base, ['popup.html', 'locked.html', 'settings.html'])) fail('This action is only available inside OpenLocker.');
   if (type === 'STATUS') return serial(() => snapshot(sender.tab?.id ?? message.tabId));
+  if (installingUpdate && ['UNLOCK', 'LOCK_DOMAIN', 'REMOVE_DOMAIN', 'INSTALL_UPDATE'].includes(type)) fail('OpenLocker is updating. Your sites and tabs are being preserved.');
   if (type === 'HELPER_STATUS') {
     try { return await native('status'); } catch (error) { return { available: false, message: error.message }; }
   }
   if (type === 'UPDATE_STATUS' || type === 'INSTALL_UPDATE') {
     if (!trustedPage(sender, base, ['popup.html', 'settings.html'])) fail('Updates are only available in OpenLocker settings or its popup.');
     if (type === 'UPDATE_STATUS') return updateStatus(message.force === true);
-    const update = await updateStatus(true);
-    if (!update.managed) fail('This copy was loaded from a development folder. Install the latest Mac installer, then load the extension folder shown by it once. Future updates use this button.');
-    if (!update.available) return { updated: false };
-    const helper = await native('status');
-    if (!helper.supportsUpdates) fail('Install OpenLocker 0.1.2 or newer once to enable one-click updates.');
-    await serial(() => revoke());
-    const result = await native('update-extension');
-    if (result.success !== true) fail(result.message || 'The update failed. Your sites remain locked.');
-    return { updated: true, version: result.version };
+    installingUpdate = true;
+    try {
+      const update = await updateStatus(true);
+      if (!update.managed) fail('This copy was loaded from a development folder. Install the latest Mac installer, then load the extension folder shown by it once. Future updates use this button.');
+      if (!update.available) return { updated: false };
+      const helper = await native('status');
+      if (!helper.supportsUpdates) fail('Install OpenLocker 0.1.2 or newer once to enable one-click updates.');
+      await serial(() => revoke());
+      const result = await native('update-extension');
+      if (result.success !== true) fail(result.message || 'The update failed. Your sites remain locked.');
+      await serial(async () => {
+        const { domains } = await local();
+        await saveProtectedSites(chrome, domains);
+        await lockedTabs.prepareReload(domains);
+      });
+      return { updated: true, version: result.version };
+    } finally { installingUpdate = false; }
   }
   if (type === 'LOCK_DOMAIN') return serial(async () => {
     const domain = normalizeDomain(message.domain);
@@ -138,8 +162,8 @@ async function handle(message, sender) {
     if (domains.length >= MAX_DOMAINS) fail(`You can protect up to ${MAX_DOMAINS} domains.`);
     const next = [...domains, domain].sort();
     // Persist intent first; if rule installation fails, restore the previous state.
-    await chrome.storage.local.set({ domains: next });
-    try { await syncDomains(next); } catch (error) { await chrome.storage.local.set({ domains }); throw error; }
+    await saveProtectedSites(chrome, next);
+    try { await syncDomains(next); } catch (error) { await saveProtectedSites(chrome, domains); throw error; }
     await revoke();
     return {};
   });
@@ -188,8 +212,8 @@ async function handle(message, sender) {
     return serial(async () => {
       const { domains } = await local();
       const next = domains.filter(d => d !== domain);
-      await syncDomains(next);
-      await chrome.storage.local.set({ domains: next });
+      await saveProtectedSites(chrome, next);
+      try { await syncDomains(next); } catch (error) { await saveProtectedSites(chrome, domains); throw error; }
       await revoke();
       return {};
     });
@@ -198,7 +222,14 @@ async function handle(message, sender) {
 }
 
 chrome.runtime.onMessage.addListener((message, sender, respond) => {
-  handle(message, sender).then(data => respond({ ok: true, ...data }), error => respond({ ok: false, error: error.message }));
+  const runtime = chrome.runtime;
+  const reply = data => { try { respond(data); } catch { /* The popup may have closed during the download. */ } };
+  handle(message, sender).then(data => {
+    reply({ ok: true, ...data });
+    // The worker owns the handoff: closing the initiating popup must not strand
+    // parked tabs or leave new files waiting indefinitely for a manual reload.
+    if (message.type === 'INSTALL_UPDATE' && data.updated) runtime.reload();
+  }, error => reply({ ok: false, error: error.message }));
   return true;
 });
 const event = task => { serial(async () => { await ready; await task(); }).catch(() => {}); };
@@ -206,6 +237,7 @@ const event = task => { serial(async () => { await ready; await task(); }).catch
 // It still invalidates a fingerprint request for a tab the user left.
 chrome.tabs.onActivated.addListener(({ tabId }) => {
   if (pendingUnlock && pendingUnlock.tabId !== tabId) generation++;
+  event(async () => lockedTabs.remember((await local()).domains));
 });
 chrome.windows.onFocusChanged.addListener(windowId => {
   if (windowId !== chrome.windows.WINDOW_ID_NONE) event(async () => {
@@ -213,9 +245,18 @@ chrome.windows.onFocusChanged.addListener(windowId => {
     if (pendingUnlock && pendingUnlock.tabId !== tab?.id) generation++;
   });
 });
-chrome.tabs.onRemoved.addListener(tabId => { if (pendingUnlock?.tabId === tabId) generation++; });
+chrome.tabs.onRemoved.addListener((tabId, info) => {
+  if (pendingUnlock?.tabId === tabId) generation++;
+  event(() => lockedTabs.forget(tabId, info));
+});
+for (const changed of [chrome.tabs.onMoved, chrome.tabs.onAttached, chrome.tabs.onDetached]) {
+  changed.addListener(() => event(async () => lockedTabs.remember((await local()).domains)));
+}
 chrome.tabs.onUpdated.addListener((tabId, change) => {
-  if (!change.url) return;
+  if (!change.url) {
+    if ('pinned' in change) event(async () => lockedTabs.remember((await local()).domains));
+    return;
+  }
   if (pendingUnlock?.tabId === tabId && change.url !== pendingUnlock.url) generation++;
   event(async () => {
     const { grants } = await session();

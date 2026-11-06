@@ -15,9 +15,9 @@ button.addEventListener('click', async () => {
     if (!info?.available) await check(true);
     if (info?.available) {
       button.textContent = 'Updating…';
-      await request('INSTALL_UPDATE');
-      chrome.runtime.reload();
-      return;
+      const result = await request('INSTALL_UPDATE');
+      if (result.updated) return;
+      await check(true);
     }
   } catch (error) { notice(error.message, true); }
   finally { pending = false; button.disabled = false; button.textContent = info?.available ? `Update to ${info.version}` : 'Check for updates'; }

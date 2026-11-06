@@ -27,6 +27,13 @@ struct InstallerTests {
         try Data("old".utf8).write(to: obsolete)
         let keep = first.extensionDirectory.deletingLastPathComponent().appendingPathComponent("keep.txt")
         try Data("keep".utf8).write(to: keep)
+        let appConfig = keep.deletingLastPathComponent().appendingPathComponent("protected-apps.json")
+        let protectedRecords = Data("[{\"bundleID\":\"test.notes\",\"name\":\"Notes\",\"path\":\"/Applications/Notes.app\"}]".utf8)
+        try protectedRecords.write(to: appConfig)
+        let chromeSettings = home.appendingPathComponent("Library/Application Support/Google/Chrome/Default/Local Extension Settings/openlocker-test/fixture.json")
+        try fm.createDirectory(at: chromeSettings.deletingLastPathComponent(), withIntermediateDirectories: true)
+        let websites = Data("{\"domains\":[\"example.com\",\"127.0.0.1\"]}".utf8)
+        try websites.write(to: chromeSettings)
         let second = try InstallerEngine(payload: payload, home: home).install()
         precondition(first.extensionDirectory == second.extensionDirectory)
         precondition(!fm.fileExists(atPath: obsolete.path))
@@ -34,6 +41,10 @@ struct InstallerTests {
 
         let desktopBefore = try Data(contentsOf: second.desktopApp.appendingPathComponent("Contents/MacOS/OpenLockerMac"))
         let chromeOnly = try InstallerEngine(payload: payload, home: home).install(scope: .chrome)
+        let appsAfter = try Data(contentsOf: appConfig)
+        let websitesAfter = try Data(contentsOf: chromeSettings)
+        precondition(appsAfter == protectedRecords, "Full and Chrome-only updates must preserve protected apps")
+        precondition(websitesAfter == websites, "The installer must never reset Chrome profile settings")
         let desktopAfter = try Data(contentsOf: chromeOnly.desktopApp.appendingPathComponent("Contents/MacOS/OpenLockerMac"))
         precondition(desktopBefore == desktopAfter, "Chrome updates must not replace a running desktop app")
         let managed = try JSONSerialization.jsonObject(with: Data(contentsOf: chromeOnly.extensionDirectory.appendingPathComponent("installation.json"))) as! [String: Bool]
@@ -82,7 +93,7 @@ struct InstallerTests {
         let bad = temporary.appendingPathComponent("invalid-payload")
         try fm.copyItem(at: payload, to: bad)
         let badManifest = bad.appendingPathComponent("extension/manifest.json")
-        try Data("{\"key\":\"YmFk\",\"version\":\"0.1.5\"}".utf8).write(to: badManifest)
+        try Data("{\"key\":\"YmFk\",\"version\":\"0.1.6\"}".utf8).write(to: badManifest)
         do { _ = try InstallerEngine(payload: bad, home: home).install(); fatalError("Invalid identity accepted") }
         catch is InstallFailure { }
         precondition(fm.isExecutableFile(atPath: second.helperExecutable.path))

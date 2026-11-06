@@ -32,6 +32,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, NSWind
     private let shields = WindowShield()
     private let green = NSColor(srgbRed: 0.20, green: 0.29, blue: 0.21, alpha: 1)
     private let configURL = FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent("Library/Application Support/OpenLocker/protected-apps.json")
+    private var recoveryURL: URL { configURL.deletingLastPathComponent().appendingPathComponent("update-session.json") }
     private let excluded = Set(["cc.openlocker.mac", "cc.openlocker.installer", "cc.openlocker.touchid", "com.apple.finder", "com.apple.dock", "com.apple.loginwindow", "com.apple.systempreferences", "com.apple.SecurityAgent"])
 
     func applicationDidFinishLaunching(_ notification: Notification) {
@@ -61,6 +62,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, NSWind
         observeWorkspace()
         syncWatchers()
         lockAll()
+        restoreUpdateSession()
         timer = Timer(timeInterval: 0.15, repeats: true) { [weak self] _ in self?.tick() }
         RunLoop.main.add(timer!, forMode: .common)
         if accessibilitySetup.needsRenewal {
@@ -69,6 +71,24 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, NSWind
             UserDefaults.standard.set(true, forKey: "hasOpened")
             DispatchQueue.main.async { [weak self] in self?.welcome() }
         }
+    }
+    private func restoreUpdateSession() {
+        guard let flag = CommandLine.arguments.firstIndex(of: "--resume-update"),
+              CommandLine.arguments.indices.contains(flag + 1), let token = UUID(uuidString: CommandLine.arguments[flag + 1]) else { return }
+        do {
+            guard let recovery = try UpdateRecovery.consume(from: recoveryURL, token: token) else { return }
+            let running = Set(NSWorkspace.shared.runningApplications.compactMap(\.bundleIdentifier))
+            let protected = Dictionary(policy.apps.map { ($0.bundleID, $0.path) }, uniquingKeysWith: { first, _ in first })
+            for record in recovery.missingApps(running: running, protected: protected) {
+                let url = URL(fileURLWithPath: record.path)
+                guard Bundle(url: url)?.bundleIdentifier == record.bundleID else { continue }
+                let configuration = NSWorkspace.OpenConfiguration()
+                configuration.activates = false; configuration.hides = record.wasHidden
+                NSWorkspace.shared.openApplication(at: url, configuration: configuration) { [weak self] _, _ in
+                    DispatchQueue.main.async { self?.syncWatchers(); self?.refreshShields() }
+                }
+            }
+        } catch { alert("Your app recovery needs attention", "Your protected app list is intact. " + error.localizedDescription) }
     }
     private func persist(_ apps: [ProtectedApp]) throws {
         try FileManager.default.createDirectory(at: configURL.deletingLastPathComponent(), withIntermediateDirectories: true, attributes: [.posixPermissions: 0o700])
@@ -289,13 +309,23 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, NSWind
     }
     private func installUpdate() {
         guard let release = availableRelease, !updateBusy else { return }
-        updateBusy = true; lockAll()
+        updateBusy = true
         Task { @MainActor [weak self] in
             guard let self else { return }
             do {
                 guard let certificate = Bundle.main.url(forResource: "ReleaseCertificate", withExtension: "cer") else { throw UpdateFailure("The signing certificate is missing. Reinstall OpenLocker.") }
                 let staged = try await ReleaseUpdater.stage(release, certificate: certificate)
-                do { _ = try staged.launch(arguments: ["--update-app", "--parent-pid", String(ProcessInfo.processInfo.processIdentifier), "--previous-app", Bundle.main.bundleURL.path]) }
+                do {
+                    let running = NSWorkspace.shared.runningApplications.compactMap { app -> AppRecoveryRecord? in
+                        guard let id = app.bundleIdentifier, let protected = self.policy.app(id) else { return nil }
+                        return AppRecoveryRecord(bundleID: id, path: protected.path, processID: app.processIdentifier,
+                                                 wasHidden: app.isHidden, wasLocked: !self.policy.isUnlocked(id, pid: app.processIdentifier))
+                    }
+                    let token = try UpdateRecovery.save(running, to: self.recoveryURL)
+                    self.lockAll()
+                    _ = try staged.launch(arguments: ["--update-app", "--parent-pid", String(ProcessInfo.processInfo.processIdentifier),
+                        "--previous-app", Bundle.main.bundleURL.path, "--resume-update", token.uuidString])
+                }
                 catch { staged.remove(); throw error }
                 NSApp.terminate(nil)
             } catch {
@@ -305,7 +335,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, NSWind
         }
     }
     @objc private func welcome() {
-        alert("Your apps. Your fingerprint.", "Click OpenLocker's menu-bar icon → Lock an app, then click any window to protect its whole app. It stays unlocked while you use your Mac and relocks after 5 minutes without keyboard or mouse activity. Each input restarts the timer.\n\nAccessibility and enrolled Touch ID are required. OpenLocker must stay running; enable Start at login if you want it after a restart. This is a convenience lock: macOS may briefly reveal windows before the blur appears, and stopping OpenLocker bypasses it.\n\nVersion 0.1.5 · Local only · No accounts")
+        alert("Your apps. Your fingerprint.", "Click OpenLocker's menu-bar icon → Lock an app, then click any window to protect its whole app. It stays unlocked while you use your Mac and relocks after 5 minutes without keyboard or mouse activity. Each input restarts the timer.\n\nAccessibility and enrolled Touch ID are required. OpenLocker must stay running; enable Start at login if you want it after a restart. This is a convenience lock: macOS may briefly reveal windows before the blur appears, and stopping OpenLocker bypasses it.\n\nVersion 0.1.6 · Local only · No accounts")
     }
     private func alert(_ title: String, _ message: String) {
         let alert = NSAlert(); alert.messageText = title; alert.informativeText = message
@@ -338,7 +368,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, NSWind
         switch requested {
         case .unlock(let app): title = "\(app.name) is locked."; detail = "A quick touch, and you're back in.\nRelocks after 5 minutes without activity."; buttonTitle = "Unlock with Touch ID"
         case .remove(let app): title = "Stop protecting \(app.name)?"; detail = "Confirm with your fingerprint to remove this app from OpenLocker."; buttonTitle = "Remove with Touch ID"
-        case .update: title = "Update OpenLocker?"; detail = "Confirm to install the verified update and relaunch. Your protected app list stays saved."; buttonTitle = "Update with Touch ID"
+        case .update: title = "Update OpenLocker?"; detail = "Keeps your apps open and protection saved. Only OpenLocker restarts."; buttonTitle = "Update with Touch ID"
         case .quit: title = "Quit OpenLocker?"; detail = "Your apps won't be protected while OpenLocker is closed."; buttonTitle = "Quit with Touch ID"
         }
         func label(_ value: String, size: CGFloat, color: NSColor) -> NSTextField {

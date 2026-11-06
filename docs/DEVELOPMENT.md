@@ -10,7 +10,7 @@ cd openlocker
 npm run build:installer
 ```
 
-Open `dist/OpenLocker-0.1.5-macOS.dmg` and run the installer, or build individual pieces:
+Open `dist/OpenLocker-0.1.6-macOS.dmg` and run the installer, or build individual pieces:
 
 ```sh
 npm run build:mac          # Mac menu-bar app in build/desktop/
@@ -71,9 +71,9 @@ Grant rules explicitly list resource types, including `main_frame`, so they matc
 
 Push a version tag matching `package.json`. The release workflow builds, tests, and publishes these assets only with the pinned persistent signing identity. For local release builds, use `npm run build:release` with the existing signing keychain configured; ad-hoc fallback is rejected:
 
-- `OpenLocker-0.1.5-macOS.dmg`
-- `OpenLocker-0.1.5-macOS.zip`
-- `OpenLocker-0.1.5-source.zip`
+- `OpenLocker-0.1.6-macOS.dmg`
+- `OpenLocker-0.1.6-macOS.zip`
+- `OpenLocker-0.1.6-source.zip`
 - `SHA256SUMS.txt`
 
 The [manual checklist](TESTING.md) covers the hardware and OS integration that automated checks cannot establish. Record unperformed checks in release notes.
@@ -89,3 +89,13 @@ Official references: [Chrome native messaging](https://developer.chrome.com/docs
 `ReleaseUpdater` validates stable GitHub release metadata, downloads the fixed repository's DMG, checks its pinned certificate before mounting read-only, and verifies the copied installer and version before execution. The installer exposes Chrome-only and parent-waiting app update modes backed by the same rollback transaction and an exclusive install lock. The Mac app bundles the extension and helper for offline Chrome setup. `installation.json` marks the managed folder; source checkouts must migrate once and are never overwritten. Chrome storage remains keyed to the fixed extension ID.
 
 The extension's pending authentication tracks its initiating tab. Returning from Touch ID to the same tab does not advance its invalidation generation; tab switches or navigation during pending authentication still do. Completed domain grants survive subsequent tab/window switches and navigation. Automatic prompting is limited to a visible, focused lock page and never loops on system-dialog focus changes.
+
+## Update persistence and recovery
+
+`protected-sites.js` loads the primary list, its recovery copy, or existing DNR protection before startup rebuilds rules. Writes update the primary and recovery list together. The original installer did not touch Chrome profile storage; its temporary-home tests now explicitly preserve a nonempty website fixture and protected Mac app list. The original trigger that cleared the reported Chrome settings was not established; the destructive fallback on missing settings was reproduced and fixed.
+
+`locked-tabs.js` journals locked destinations/placement in `storage.local`. A `storage.session` marker distinguishes a worker restart from a full reload. Updates checkpoint and park lock pages on opaque `about:blank` URLs, wait for those navigations to commit, and reload. Startup restores existing placeholders or recreates missing tabs/windows, matching duplicate occurrences once. Tab-close/navigation events remove obsolete entries. No grants are persisted in this journal.
+
+`UpdateRecovery.swift` provides the Mac handoff inventory. The app records it immediately before the verified installer starts; the installer also captures running apps for updates from older versions. Only OpenLocker exits. The replacement consumes the expiring inventory and leaves every surviving process alone. A missing protected app can reopen after checking its path and bundle ID. Fingerprint authentication remains separate.
+
+Run `python3 tests/update_windows.py` after building the installer and running installer tests for the local GUI integration check. It uses disposable AppKit windows with unsaved sample text and temporary home directories, verifies process/window identity across installer transactions and blur-process restart, and closes its own fixtures. It does not modify user apps or their protection settings.

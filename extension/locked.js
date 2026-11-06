@@ -27,7 +27,10 @@ async function unlock() {
   maybeAutoUnlock();
 }
 async function maybeAutoUnlock() {
-  const eligible = () => state?.domain && !autoAttempted && !unlocking && document.visibilityState === 'visible' && document.hasFocus();
+  if (state?.updating) {
+    try { state = await request('STATUS'); } catch { return; }
+  }
+  const eligible = () => state?.domain && !state.updating && !autoAttempted && !unlocking && document.visibilityState === 'visible' && document.hasFocus();
   if (!eligible()) return;
   // A timeout can replace a foreground page while its owner is away. Wait for
   // actual input before opening Touch ID; merely returning never grants access.

@@ -4,16 +4,22 @@ import vm from 'node:vm';
 import { readFileSync } from 'node:fs';
 const script = readFileSync(new URL('../extension/locked.js', import.meta.url), 'utf8').replace(/^import .*;\n/gm, '');
 const settle = () => new Promise(resolve => setImmediate(resolve));
-async function page({ visible = true, focused = true, domain = 'example.com', cancel = false, idle = false, unlocked = false } = {}) {
+async function page({ visible = true, focused = true, domain = 'example.com', cancel = false, idle = false, unlocked = false, updating = false } = {}) {
   const listeners = {}, elements = {}, requests = [];
   const navigations = [];
   const $ = selector => elements[selector] ??= { disabled:true, addEventListener(event, callback) { listeners[`${selector}:${event}`] = callback; } };
   const document = { visibilityState:visible?'visible':'hidden',hasFocus:()=>focused,addEventListener:(name,fn)=>listeners[name]=fn };
   vm.runInNewContext(script, { $, document, window:{addEventListener:(name,fn)=>listeners[name]=fn}, location:{hash:'#https://example.com/',replace(url){navigations.push(url);}}, chrome:{runtime:{openOptionsPage(){}},idle:{queryState:async()=>idle?'idle':'active',onStateChanged:{addListener:fn=>listeners.idle=fn}}},
-    IDLE_SECONDS:300,webURL: v=>new URL(v), request:async type=>{ requests.push(type); if(type==='UNLOCK'&&cancel) throw Error('Cancelled'); return {domain,unlocked}; },
+    IDLE_SECONDS:300,webURL: v=>new URL(v), request:async type=>{ requests.push(type); if(type==='UNLOCK'&&cancel) throw Error('Cancelled'); return {domain,unlocked,updating}; },
     busy:async (_,task)=>{try{await task();}catch{}}, notice:()=>{} });
-  await settle(); return { requests, listeners, document, navigations, input(){idle=false;listeners.idle('active');} };
+  await settle(); return { requests, listeners, document, navigations, input(){idle=false;listeners.idle('active');}, finishUpdate(){updating=false;} };
 }
+test('an update suppresses prompts but a failed or finished update leaves automatic unlock usable', async () => {
+  const p=await page({updating:true});
+  assert.equal(p.requests.includes('UNLOCK'),false);
+  p.finishUpdate();p.listeners.focus();await settle();
+  assert.equal(p.requests.filter(r=>r==='UNLOCK').length,1);
+});
 test('a visible locked site prompts once and keeps cancellation retryable', async () => {
   const p=await page({cancel:true});
   assert.equal(p.requests.filter(r=>r==='UNLOCK').length,1);
