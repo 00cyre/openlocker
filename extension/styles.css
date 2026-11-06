@@ -1,0 +1,73 @@
+:root { color-scheme: light; --paper:#f5f5f0; --card:#fff; --ink:#20251e; --muted:#74796d; --line:#e0e3d9; --green:#334b35; --lime:#d8edb4; --red:#ab3d35; font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif; font-synthesis:none; }
+* { box-sizing:border-box; }
+body { margin:0; background:var(--paper); color:var(--ink); font-size:14px; -webkit-font-smoothing:antialiased; }
+button,input { font:inherit; }
+button,a { -webkit-tap-highlight-color:transparent; }
+button { cursor:pointer; }
+button:disabled { cursor:wait; opacity:.6; }
+button:focus-visible,a:focus-visible,input:focus-visible { outline:3px solid #7b9c54; outline-offset:3px; }
+button { border:0; }
+a { color:var(--green); text-underline-offset:3px; }
+button.primary { background:var(--green); color:white; border-radius:13px; padding:16px 20px; font-weight:600; width:100%; transition:background .15s,transform .15s; }
+button.primary:hover { background:#263c28; }
+button.primary:active { transform:translateY(1px); }
+button.secondary { padding:11px 15px; border:1px solid var(--line); border-radius:11px; background:transparent; color:var(--ink); }
+button.text { padding:5px 0; background:none; color:var(--muted); font-size:12px; }
+button.text:hover { color:var(--ink); }
+.brand { display:flex; gap:9px; align-items:center; font-weight:650; letter-spacing:-.5px; font-size:17px; }
+.brandmark { width:28px; height:28px; display:inline-grid; place-items:center; background:var(--green); color:var(--lime); border-radius:9px; }
+.brandmark svg { width:19px; height:19px; }
+.eyebrow { font-size:10px; letter-spacing:1.65px; font-weight:700; color:var(--muted); text-transform:uppercase; }
+.muted { color:var(--muted); line-height:1.65; }
+.tag { display:inline-flex; align-items:center; gap:6px; padding:5px 9px; border-radius:20px; background:#eaf0e2; color:#526943; font-size:10px; font-weight:600; }
+.dot { width:5px; height:5px; border-radius:50%; background:#78975f; }
+.popup { width:360px; padding:23px; }
+.popup header { display:flex; align-items:center; justify-content:space-between; padding-bottom:25px; }
+.icon-button { width:30px; height:30px; border-radius:9px; background:transparent; color:var(--muted); display:grid; place-items:center; }
+.icon-button:hover { background:var(--line); }
+.icon-button svg { width:18px; height:18px; }
+.site-card { background:var(--card); padding:23px 20px 21px; border:1px solid var(--line); border-radius:17px; margin:0 0 17px; }
+.site-card h1 { margin:13px 0 7px; font-size:25px; letter-spacing:-1px; overflow-wrap:anywhere; }
+.site-card p { margin:0; font-size:12px; line-height:1.6; color:var(--muted); }
+.popup .hint { margin:13px 3px 24px; text-align:center; font-size:11px; line-height:1.65; }
+.popup footer { border-top:1px solid var(--line); padding-top:15px; display:flex; justify-content:space-between; align-items:center; }
+.popup footer span { font-size:11px; color:var(--muted); }
+#notice { font-size:12px; line-height:1.65; padding:11px 13px; background:#eaf0e2; border-radius:10px; margin:14px 0; overflow-wrap:anywhere; }
+#notice.error { background:#f7e7e2; color:var(--red); }
+.locked-page { min-height:100vh; display:flex; flex-direction:column; }
+.page-header { padding:30px 38px; display:flex; justify-content:space-between; align-items:center; }
+.locked-main { flex:1; display:grid; place-items:center; padding:24px 20px 70px; }
+.lock-card { width:min(100%,400px); text-align:center; }
+.fingerprint { margin:0 auto 31px; width:92px; height:92px; padding:18px; border-radius:29px; background:#e6eddb; color:var(--green); box-shadow:0 0 0 9px #edf0e6; }
+.fingerprint svg { width:100%; height:100%; }
+.lock-card h1 { font-size:42px; line-height:1.1; font-weight:580; letter-spacing:-1.8px; margin:15px 0 18px; }
+.domain-pill { display:inline-flex; max-width:100%; overflow-wrap:anywhere; padding:8px 13px; border:1px solid var(--line); border-radius:8px; background:#ffffff80; font-size:13px; margin:0 0 23px; }
+.lock-card .description { margin:0 auto 26px; max-width:305px; font-size:14px; line-height:1.7; color:var(--muted); }
+.lock-card .primary { max-width:300px; }
+.lock-card .hint { font-size:11px; margin-top:15px; line-height:1.7; }
+.page-footer { padding:20px 30px 27px; text-align:center; color:var(--muted); font-size:11px; }
+.page-footer span { margin:0 9px; opacity:.45; }
+.settings-wrap { max-width:740px; margin:30px auto 80px; padding:0 24px; }
+.settings-wrap h1 { font-size:36px; letter-spacing:-1.2px; font-weight:600; margin:12px 0; }
+.settings-wrap h2 { font-size:17px; margin:0; letter-spacing:-.4px; }
+.panel { padding:24px; background:var(--card); border:1px solid var(--line); border-radius:17px; margin-top:24px; }
+.panel-head { display:flex; align-items:center; justify-content:space-between; gap:12px; }
+.status-line { display:flex; align-items:center; gap:9px; }
+.status-line .dot { width:7px; height:7px; }
+.panel p { font-size:13px; line-height:1.7; }
+.setup-steps { padding-left:20px; line-height:1.8; color:var(--muted); font-size:13px; }
+.setup-steps li { padding:4px 0; }
+code { font:12px ui-monospace,SFMono-Regular,monospace; background:var(--paper); border:1px solid var(--line); padding:3px 6px; border-radius:5px; overflow-wrap:anywhere; }
+.add-form { display:flex; gap:10px; margin-top:20px; }
+input { min-width:0; width:100%; background:var(--paper); border:1px solid var(--line); border-radius:11px; padding:12px 13px; color:var(--ink); }
+.add-form .primary { width:auto; white-space:nowrap; padding:12px 20px; }
+.domain-list { padding:0; margin:16px 0 0; list-style:none; }
+.domain-list li { display:flex; align-items:center; justify-content:space-between; gap:12px; padding:17px 0; border-top:1px solid var(--line); }
+.domain-list .name { font-weight:550; overflow-wrap:anywhere; }
+.domain-list small { display:block; color:var(--muted); font-size:11px; margin-top:5px; }
+.domain-list button { white-space:nowrap; font-size:12px; }
+.empty-state { text-align:center; padding:20px 10px 4px; }
+.footnote { font-size:12px; line-height:1.8; color:var(--muted); margin:22px 2px; }
+[hidden] { display:none !important; }
+@media (max-width:480px) { .page-header { padding:22px; } .page-header .tag { display:none; } .settings-wrap { margin-top:12px; padding:0 18px; } .panel { padding:19px; } .lock-card h1 { font-size:36px; } }
+@media (prefers-reduced-motion:reduce) { * { transition:none !important; } }

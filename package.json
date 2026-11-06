@@ -1,0 +1,16 @@
+{
+  "name": "openlocker",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Lock Chrome domains with your MacBook's Touch ID.",
+  "scripts": {
+    "test": "node --test tests/*.test.js",
+    "check": "node scripts/check.mjs",
+    "build:native": "bash scripts/build-native.sh",
+    "test:native": "python3 tests/native_protocol.py",
+    "package": "bash scripts/package.sh"
+  },
+  "engines": { "node": ">=22" },
+  "license": "MIT"
+}

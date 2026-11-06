@@ -1,0 +1,68 @@
+{
+  "manifest_version": 3,
+  "name": "OpenLocker",
+  "version": "0.1.0",
+  "description": "A little privacy, at your fingertips. Lock websites with your Mac's Touch ID.",
+  "minimum_chrome_version": "120",
+  "permissions": [
+    "storage",
+    "tabs",
+    "nativeMessaging",
+    "declarativeNetRequestWithHostAccess",
+    "idle",
+    "webNavigation"
+  ],
+  "host_permissions": [
+    "http://*/*",
+    "https://*/*"
+  ],
+  "background": {
+    "service_worker": "background.js",
+    "type": "module"
+  },
+  "action": {
+    "default_popup": "popup.html",
+    "default_title": "OpenLocker",
+    "default_icon": {
+      "16": "icons/16.png",
+      "32": "icons/32.png",
+      "48": "icons/48.png",
+      "128": "icons/128.png"
+    }
+  },
+  "icons": {
+    "16": "icons/16.png",
+    "32": "icons/32.png",
+    "48": "icons/48.png",
+    "128": "icons/128.png"
+  },
+  "options_page": "settings.html",
+  "content_scripts": [
+    {
+      "matches": [
+        "http://*/*",
+        "https://*/*"
+      ],
+      "js": [
+        "guard.js"
+      ],
+      "run_at": "document_start"
+    }
+  ],
+  "web_accessible_resources": [
+    {
+      "resources": [
+        "locked.html"
+      ],
+      "matches": [
+        "http://*/*",
+        "https://*/*"
+      ]
+    }
+  ],
+  "content_security_policy": {
+    "extension_pages": "script-src 'self'; object-src 'none'; base-uri 'none'; frame-ancestors 'none'"
+  },
+  "incognito": "not_allowed",
+  "key": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEApmlj33SOjzPpf2YBXCuH3etY6wZ40gt6sKY9BII+SZckKb3dw3UE+nvmvwjr5kX8zofpKNtNRk6DU/BIRqm8M3NKXrBtpMzSkwI+QFLEwmzPxyAxDbK9xdivr9SRZaa3rV9qqHLXPsDhnRcR6d3d9S9RKa7VGijhDI4uYad9B1y0lhlFUt3IFFjFpibkM1aB1fc2D8IrBa/+RXHAqjC+DIjwXKrVdgptwPBsIbqObalJjIZfQ0d1DwKkz7tCkf1bncX4IsaBciLAU/vcgpO0UFC2rDwy3fkQP1Og10Vt8rORAwpj/6wLpbYX75+F1UONePENnHGz6w3bN4m+DvlmfwIDAQAB"
+}

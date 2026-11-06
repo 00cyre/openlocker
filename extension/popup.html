@@ -1,0 +1,10 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>OpenLocker</title><link rel="stylesheet" href="styles.css"><script type="module" src="popup.js"></script></head>
+<body class="popup">
+<header><div class="brand"><span class="brandmark" data-fingerprint></span>openlocker</div><button class="icon-button" id="settings" aria-label="Settings"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M4 7h16M4 17h16"/><circle cx="9" cy="7" r="3" fill="var(--paper)"/><circle cx="15" cy="17" r="3" fill="var(--paper)"/></svg></button></header>
+<section class="site-card"><span class="eyebrow" id="site-label">Current website</span><h1 id="domain">One moment…</h1><p id="site-description">A little privacy, at your fingertips.</p></section>
+<button class="primary" id="action" disabled>Checking Touch ID…</button>
+<p class="muted hint" id="hint">Only you and your fingerprint.</p>
+<p id="notice" role="status" hidden></p>
+<footer><span id="count">Your sites stay on this Mac</span><button class="text" id="lock-all">Lock all now ↗</button></footer>
+</body></html>
