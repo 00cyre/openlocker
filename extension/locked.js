@@ -11,6 +11,8 @@ async function render() {
   $('#unlock').disabled = false;
 }
 $('#unlock').addEventListener('click', () => busy($('#unlock'), async () => {
+  // Settings may have removed protection while this lock page stayed open.
+  state = await request('STATUS');
   if (state.domain) await request('UNLOCK');
   else location.replace(target.href);
 }, 'Waiting for your fingerprint…'));
