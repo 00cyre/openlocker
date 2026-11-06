@@ -39,7 +39,12 @@ jobs:
         env:
           OPENLOCKER_SIGNING_P12: ${{ secrets.OPENLOCKER_SIGNING_P12 }}
           OPENLOCKER_SIGNING_PASSWORD: ${{ secrets.OPENLOCKER_SIGNING_PASSWORD }}
-        run: python3 scripts/import-release-signing.py
+        run: |
+          python3 scripts/import-release-signing.py
+          # This disposable runner must resolve the imported signing identity.
+          # This never changes certificate trust or keychains on a user's Mac.
+          security list-keychains -d user -s "$OPENLOCKER_SIGNING_KEYCHAIN"
+          security find-identity -p codesigning "$OPENLOCKER_SIGNING_KEYCHAIN"
       - run: npm test && npm run check && npm run test:mac
       - run: npm run build:release
       - run: npm run test:installer && npm run test:native && npm run package
