@@ -10,7 +10,7 @@ cd openlocker
 npm run build:installer
 ```
 
-Open `dist/OpenLocker-0.1.4-macOS.dmg` and run the installer, or build individual pieces:
+Open `dist/OpenLocker-0.1.5-macOS.dmg` and run the installer, or build individual pieces:
 
 ```sh
 npm run build:mac          # Mac menu-bar app in build/desktop/
@@ -51,15 +51,19 @@ GitHub checks build both the Chrome code and universal macOS development artifac
 
 ## Mac app flow
 
-The menu-bar app persists a list of bundle IDs, names, and bundle paths. Window selection uses on-screen window metadata; it does not capture pixels. Accessibility observes minimization and restores minimized windows after authentication. Workspace notifications handle focus changes, hiding, launches, exits, sleep, and session changes.
+The menu-bar app persists a list of bundle IDs, names, and bundle paths. Window selection uses on-screen window metadata; it does not capture pixels. Accessibility observes window changes and restores minimized windows after authentication. Workspace notifications handle activation, launches, exits, sleep, and session changes. Focus loss, hiding, and minimizing preserve grants.
 
-`LockPolicy` owns process-scoped unlocks and generation-based authentication invalidation. A successful Touch ID response can create a grant only for the selected protected app and current process. Relocking, cancellation, or changing the target invalidates an old response. No grants are persisted. The application covers locked app windows with native behind-window blur panels that intercept input. A Touch ID modal appears in front when the user returns. It does not hide or minimize the protected app: doing so transfers focus and can dismiss the unlock modal. A deterministic activation-event replay guards this regression. macOS may display content before overlays are positioned.
+`LockPolicy` owns process-scoped unlocks, the five-minute idle transition, and generation-based authentication invalidation. A successful Touch ID response can create a grant only for the selected protected app and current process. Relocking, cancellation, or changing the target invalidates an old response. No grants are persisted. The application covers locked app windows with native behind-window blur panels that intercept input. A Touch ID modal appears in front when the user returns. It does not hide or minimize the protected app: doing so transfers focus and can dismiss the unlock modal. A deterministic activation-event replay guards this regression. macOS may display content before overlays are positioned.
 
 ## Chrome flow
 
 Persistent `declarativeNetRequest` rules redirect protected top-level network requests to a local lock page and block matching subresources. The service worker accepts mutations only from named extension pages and sends a fresh request ID to the allowlisted native host. Swift uses `deviceOwnerAuthenticationWithBiometrics`, with fallback hidden and reuse disabled.
 
-After a matching successful response, the worker checks that the tab and lock generation have not changed. A session allowance is scoped to the tab/domain. Switching tabs or Chrome windows, leaving the domain, restarting Chrome, and locking the screen revoke access. A document-start guard and navigation checks add coverage for cached pages.
+After a matching successful response, the worker checks that the tab and lock generation have not changed. A session allowance covers the authenticated domain across tabs and windows in the Chrome profile. Switching and navigation preserve it. Five minutes without system input, restarting Chrome, locking the screen, or an explicit lock revoke access. A document-start guard and navigation checks add coverage for cached pages.
+
+The extension uses [`chrome.idle`](https://developer.chrome.com/docs/extensions/reference/api/idle) with a 300-second detection interval; the idle event wakes its worker. Startup, authorization, and guard checks also query the current idle state. Worker suspension preserves active domain grants; browser restart does not. No page can extend a session by sending synthetic activity messages. A lock page created while idle waits for the system to become active before automatically prompting.
+
+The Mac app samples [`CGEventSource.secondsSinceLastEventType`](https://developer.apple.com/documentation/coregraphics/cgeventsource/secondssincelasteventtype(_:eventtype:)) for `kCGAnyInputEventType` in the combined session state. The existing window-refresh timer also checks the idle threshold. `LockPolicy.updateActivity` invalidates grants and pending authentication once per idle transition. Keyboard, mouse, or tablet input resets the OS clock; OpenLocker reads only elapsed seconds, not the input. No additional monitoring permission is needed.
 
 Grant rules explicitly list resource types, including `main_frame`, so they match the page navigation as well as page resources. Chrome excludes `main_frame` when both resource-type masks are empty, including an empty exclusion list; such a grant redirects straight back to the lock page after successful authentication. The worker regression tests model Chromium's `ComputeElementTypes` behavior at the navigation boundary.
 
@@ -67,9 +71,9 @@ Grant rules explicitly list resource types, including `main_frame`, so they matc
 
 Push a version tag matching `package.json`. The release workflow builds, tests, and publishes these assets only with the pinned persistent signing identity. For local release builds, use `npm run build:release` with the existing signing keychain configured; ad-hoc fallback is rejected:
 
-- `OpenLocker-0.1.4-macOS.dmg`
-- `OpenLocker-0.1.4-macOS.zip`
-- `OpenLocker-0.1.4-source.zip`
+- `OpenLocker-0.1.5-macOS.dmg`
+- `OpenLocker-0.1.5-macOS.zip`
+- `OpenLocker-0.1.5-source.zip`
 - `SHA256SUMS.txt`
 
 The [manual checklist](TESTING.md) covers the hardware and OS integration that automated checks cannot establish. Record unperformed checks in release notes.
@@ -84,4 +88,4 @@ Official references: [Chrome native messaging](https://developer.chrome.com/docs
 
 `ReleaseUpdater` validates stable GitHub release metadata, downloads the fixed repository's DMG, checks its pinned certificate before mounting read-only, and verifies the copied installer and version before execution. The installer exposes Chrome-only and parent-waiting app update modes backed by the same rollback transaction and an exclusive install lock. The Mac app bundles the extension and helper for offline Chrome setup. `installation.json` marks the managed folder; source checkouts must migrate once and are never overwritten. Chrome storage remains keyed to the fixed extension ID.
 
-The extension's pending authentication tracks its initiating tab. Returning from Touch ID to the same tab does not advance its invalidation generation; real tab switches, locking, or navigation still do. Automatic prompting is limited to a visible, focused lock page and never loops on system-dialog focus changes.
+The extension's pending authentication tracks its initiating tab. Returning from Touch ID to the same tab does not advance its invalidation generation; tab switches or navigation during pending authentication still do. Completed domain grants survive subsequent tab/window switches and navigation. Automatic prompting is limited to a visible, focused lock page and never loops on system-dialog focus changes.

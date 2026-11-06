@@ -1,6 +1,6 @@
 # OpenLocker demo
 
-A 32-second illustrated walkthrough, authored in [HyperFrames](https://github.com/heygen-com/hyperframes). Shows website locking, automatic Touch ID, Mac window selection, input-blocking blur, and relocking when you leave.
+A 35-second illustrated walkthrough, authored in [HyperFrames](https://github.com/heygen-com/hyperframes). Shows website locking, automatic Touch ID, Mac window selection, input-blocking blur, and relocking after five minutes idle.
 
 The screens use sample content and OpenLocker's existing visual design. This is an animation, not a recording or a functional security demo. The macOS Touch ID prompt is simplified. It is deliberately silent for README playback.
 

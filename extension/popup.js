@@ -14,10 +14,10 @@ async function render() {
     $('#hint').textContent = 'Chrome pages and the Web Store cannot be locked.';
   } else {
     $('#domain').textContent = state.domain || normalizeDomain(state.url);
-    $('#site-label').textContent = state.domain ? (state.unlocked ? 'Unlocked in this tab' : 'Protected website') : 'Current website';
+    $('#site-label').textContent = state.domain ? (state.unlocked ? 'Unlocked for now' : 'Protected website') : 'Current website';
     $('#site-description').textContent = state.domain ? 'This domain and its subdomains are protected.' : 'Lock this domain and its subdomains.';
     $('#action').textContent = !helper.available ? 'Set up Touch ID' : state.unlocked ? 'Lock this site now' : state.domain ? 'Open locked tab' : 'Lock this site';
-    $('#hint').textContent = state.unlocked ? 'Relocks when you switch tabs.' : 'Unlock with Touch ID. Relock when you leave.';
+    $('#hint').textContent = state.unlocked ? 'Relocks after 5 minutes without activity.' : 'Touch ID once. Stays open while you’re active.';
   }
   $('#action').disabled = false;
 }

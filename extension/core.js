@@ -1,5 +1,6 @@
 export const HOST = 'cc.openlocker.touchid';
 export const MAX_DOMAINS = 500;
+export const IDLE_SECONDS = 5 * 60;
 
 export function webURL(value) {
   try {
@@ -56,14 +57,14 @@ export function domainRules(domains, base) {
   ]);
 }
 
-export function grantRule(grant) {
+export function grantRule(grant, index = 0) {
   return {
-    id: grant.tabId + 1, priority: 100,
+    id: index + 1, priority: 100,
     action: { type: 'allow' },
     // Chrome's default excludes main_frame, even with an empty exclusion list.
     // Specify the types explicitly so authentication also allows navigation.
     condition: {
-      requestDomains: [grant.domain], tabIds: [grant.tabId],
+      requestDomains: [grant.domain],
       resourceTypes: ['main_frame', 'sub_frame', 'stylesheet', 'script', 'image',
         'font', 'object', 'xmlhttprequest', 'ping', 'csp_report', 'media',
         'websocket', 'webtransport', 'webbundle', 'other']

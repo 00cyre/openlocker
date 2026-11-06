@@ -82,7 +82,7 @@ struct InstallerTests {
         let bad = temporary.appendingPathComponent("invalid-payload")
         try fm.copyItem(at: payload, to: bad)
         let badManifest = bad.appendingPathComponent("extension/manifest.json")
-        try Data("{\"key\":\"YmFk\",\"version\":\"0.1.4\"}".utf8).write(to: badManifest)
+        try Data("{\"key\":\"YmFk\",\"version\":\"0.1.5\"}".utf8).write(to: badManifest)
         do { _ = try InstallerEngine(payload: bad, home: home).install(); fatalError("Invalid identity accepted") }
         catch is InstallFailure { }
         precondition(fm.isExecutableFile(atPath: second.helperExecutable.path))

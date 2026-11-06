@@ -2,6 +2,7 @@ import AppKit
 import ApplicationServices
 import LocalAuthentication
 import ServiceManagement
+import CoreGraphics
 
 private enum GateAction: Equatable {
     case unlock(ProtectedApp), remove(ProtectedApp), quit, update
@@ -92,13 +93,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, NSWind
                 }
             }
         }
-        for name in [NSWorkspace.didDeactivateApplicationNotification, NSWorkspace.didHideApplicationNotification] {
-            observe(name) { [weak self] note in
-                guard let self, let app = note.userInfo?[NSWorkspace.applicationUserInfoKey] as? NSRunningApplication,
-                      let id = app.bundleIdentifier, self.policy.isUnlocked(id, pid: app.processIdentifier) else { return }
-                self.lock(id)
-            }
-        }
         observe(NSWorkspace.didUnhideApplicationNotification) { [weak self] note in
             guard let self, let app = note.userInfo?[NSWorkspace.applicationUserInfoKey] as? NSRunningApplication,
                   let id = app.bundleIdentifier, let protected = self.policy.app(id),
@@ -127,19 +121,25 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, NSWind
         guard AXIsProcessTrusted() else { return }
         for app in running {
             guard let id = app.bundleIdentifier, policy.app(id) != nil, watchers[app.processIdentifier] == nil else { continue }
-            watchers[app.processIdentifier] = WindowObserver(pid: app.processIdentifier) { [weak self] in self?.lock(id) }
+            watchers[app.processIdentifier] = WindowObserver(pid: app.processIdentifier) { [weak self] in self?.refreshShields() }
         }
     }
+    private func refreshActivity() {
+        // kCGAnyInputEventType is imported as the all-bits-set event value.
+        let idle = CGEventSource.secondsSinceLastEventType(.combinedSessionState, eventType: CGEventType(rawValue: UInt32.max)!)
+        if policy.updateActivity(idleSeconds: idle) { refreshShields(); dismissGate() }
+    }
     private func tick() {
+        refreshActivity()
         syncWatchers()
-        // Notification support differs across apps. Polling catches minimize
-        // transitions and keeps blur/input-blocking windows aligned.
+        // Keep blur/input-blocking windows aligned even for apps with incomplete
+        // window notifications. Minimizing never revokes an active idle session.
         for watcher in Array(watchers.values) { watcher.refresh() }
         for app in NSWorkspace.shared.runningApplications {
             guard let id = app.bundleIdentifier, let protected = policy.app(id) else { continue }
             if policy.isUnlocked(id, pid: app.processIdentifier) {
                 if !AXIsProcessTrusted() { lock(id) }
-            } else if app.isActive && shields.hasVisibleWindows(for: app.processIdentifier) {
+            } else if !policy.isInactive && app.isActive && shields.hasVisibleWindows(for: app.processIdentifier) {
                 showGate(.unlock(protected))
             }
         }
@@ -172,6 +172,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, NSWind
     private func rebuildMenu() {
         menu.removeAllItems()
         let header = item("OpenLocker", action: nil); header.isEnabled = false; menu.addItem(header)
+        let timeout = item("Relocks after 5 minutes idle", action: nil); timeout.isEnabled = false; menu.addItem(timeout)
         menu.addItem(item("Lock an app…", action: #selector(pickApp)))
         menu.addItem(.separator())
         if policy.apps.isEmpty { let empty = item("No protected apps yet", action: nil); empty.isEnabled = false; menu.addItem(empty) }
@@ -304,13 +305,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, NSWind
         }
     }
     @objc private func welcome() {
-        alert("Your apps. Your fingerprint.", "Click OpenLocker's menu-bar icon → Lock an app, then click any window to protect its whole app. It relocks when you switch apps, hide it, or minimize a window.\n\nAccessibility and enrolled Touch ID are required. OpenLocker must stay running; enable Start at login if you want it after a restart. This is a convenience lock: macOS may briefly reveal windows before the blur appears, and stopping OpenLocker bypasses it.\n\nVersion 0.1.4 · Local only · No accounts")
+        alert("Your apps. Your fingerprint.", "Click OpenLocker's menu-bar icon → Lock an app, then click any window to protect its whole app. It stays unlocked while you use your Mac and relocks after 5 minutes without keyboard or mouse activity. Each input restarts the timer.\n\nAccessibility and enrolled Touch ID are required. OpenLocker must stay running; enable Start at login if you want it after a restart. This is a convenience lock: macOS may briefly reveal windows before the blur appears, and stopping OpenLocker bypasses it.\n\nVersion 0.1.5 · Local only · No accounts")
     }
     private func alert(_ title: String, _ message: String) {
         let alert = NSAlert(); alert.messageText = title; alert.informativeText = message
         NSApp.activate(ignoringOtherApps: true); alert.runModal()
     }
     private func showGate(_ requested: GateAction) {
+        refreshActivity()
+        guard !policy.isInactive else { return }
         guard !accessibilitySetup.isVisible else { return }
         if action == requested, let gate, gate.isVisible {
             if authentication == nil { gate.makeKeyAndOrderFront(nil); NSApp.activate(ignoringOtherApps: true) }
@@ -333,7 +336,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, NSWind
         stack.addArrangedSubview(icon)
         let title: String, detail: String, buttonTitle: String
         switch requested {
-        case .unlock(let app): title = "\(app.name) is locked."; detail = "A quick touch, and you're back in.\nRelocks when you leave or minimize a window."; buttonTitle = "Unlock with Touch ID"
+        case .unlock(let app): title = "\(app.name) is locked."; detail = "A quick touch, and you're back in.\nRelocks after 5 minutes without activity."; buttonTitle = "Unlock with Touch ID"
         case .remove(let app): title = "Stop protecting \(app.name)?"; detail = "Confirm with your fingerprint to remove this app from OpenLocker."; buttonTitle = "Remove with Touch ID"
         case .update: title = "Update OpenLocker?"; detail = "Confirm to install the verified update and relaunch. Your protected app list stays saved."; buttonTitle = "Update with Touch ID"
         case .quit: title = "Quit OpenLocker?"; detail = "Your apps won't be protected while OpenLocker is closed."; buttonTitle = "Quit with Touch ID"
@@ -368,6 +371,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, NSWind
         gate?.orderOut(nil); gate = nil; action = nil; messageLabel = nil; unlockButton = nil
     }
     @objc private func authenticate() {
+        refreshActivity()
         guard authentication == nil, let requested = action else { return }
         if case .unlock = requested, !AXIsProcessTrusted() {
             dismissGate()
@@ -387,7 +391,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, NSWind
         switch requested { case .unlock(let app): reason = "unlock \(app.name)"; case .remove(let app): reason = "stop protecting \(app.name)"; case .quit: reason = "quit OpenLocker"; case .update: reason = "update and relaunch OpenLocker" }
         context.evaluatePolicy(.deviceOwnerAuthenticationWithBiometrics, localizedReason: reason) { [weak self] success, _ in
             DispatchQueue.main.async {
-                guard let self, self.authentication === context, self.action == requested else { return }
+                guard let self else { return }
+                self.refreshActivity()
+                guard self.authentication === context, self.action == requested else { return }
                 self.authentication = nil; self.unlockButton?.isEnabled = true
                 guard success, self.policy.accepts(ticket) else {
                     self.messageLabel?.stringValue = success ? "The app state changed. Try again." : "Not unlocked. Try Touch ID again when you're ready."; return

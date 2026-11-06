@@ -7,15 +7,15 @@ Load the unpacked extension and install the helper on a Mac with enrolled Touch 
 - [ ] Settings reports “Touch ID is ready”. No errors appear on the extension card.
 - [ ] Open `https://example.com`, click the toolbar icon, then **Lock this site**. The existing page is replaced with OpenLocker's lock screen.
 - [ ] Open a second tab to the domain: it starts locked, with no protected page contents visible.
-- [ ] Click **Unlock with Touch ID**. The macOS prompt names the domain; a valid fingerprint opens only that tab.
+- [ ] Click **Unlock with Touch ID**. The macOS prompt names the domain; a valid fingerprint unlocks that domain across tabs.
 - [ ] Cancel the prompt: the page remains locked. No password/Apple Watch fallback unlocks it.
-- [ ] Switch tabs, switch Chrome windows, leave the protected domain, and lock macOS. Each action relocks the protected document. Switching apps alone need not relock.
+- [ ] Switch tabs, Chrome windows, and apps; navigate away and back. Previously unlocked domains remain available without another prompt. Continue keyboard/mouse input for more than five minutes, including input outside Chrome: the session stays open. Stop all input for five minutes: every protected page relocks. Return and verify one automatic Touch ID prompt. Lock macOS separately: it revokes access immediately.
 - [ ] Click **Lock all now** and verify every protected page is replaced, including background tabs.
 - [ ] While an authentication prompt is pending, change tabs or request a lock. A late successful response must not unlock.
 - [ ] Try a protected URL with query parameters and encoded characters. Confirm the destination after unlocking. Network redirect fragments are not guaranteed; do not promise POST replay.
 - [ ] Try same-domain client-side navigation, reload, back/forward cache, and a service-worker/offline page. They must not expose a protected document while locked.
 - [ ] Test a domain with subdomains, overlapping parent/child locks, and lookalikes such as `example.com.attacker.test`.
-- [ ] Try a protected embedded frame/resource in another tab. It remains blocked; unrelated hosts work.
+- [ ] Try a protected embedded frame/resource in another tab. It remains blocked before domain authentication and is allowed during that domain’s active session; unrelated protected domains remain blocked.
 - [ ] Remove a domain in settings: fresh Touch ID is required. Cancelling preserves it.
 - [ ] Restart Chrome with protected tabs restored: all start locked.
 - [ ] Remove/unregister the helper: protected domains remain locked and the UI offers setup guidance.
@@ -34,7 +34,7 @@ These checks require an installed app, user-approved Accessibility, and a physic
 - [ ] Install the DMG into a fresh user account. No compiler or administrator password is required. The app appears in `~/Applications`, and Chrome setup loads the stable extension folder.
 - [ ] Launch the menu-bar app. Choose **Lock an app**, approve Accessibility, then select a disposable test app's window. It protects the whole app and covers its windows with blur panels.
 - [ ] Cancel Touch ID: the target stays covered and cannot receive mouse/scroll/keyboard input. A valid fingerprint removes the panels and returns focus. No password or Apple Watch fallback unlocks it.
-- [ ] Switch to another app, hide the target, and minimize a target window separately. Each relocks it. Test both a single-window and multi-window app.
+- [ ] Switch to another app, hide the target, and minimize a target window separately. Each preserves its unlock. Use keyboard/mouse input anywhere on the Mac for more than five minutes and verify it stays open. Leave all input idle for five minutes and verify the blur returns. Returning requires Touch ID. Test single-window and multi-window apps.
 - [ ] Reopen the app from the Dock, Spotlight, and Mission Control. Record any content flashes or stale thumbnails; these are limitations of event-driven overlays, not a guaranteed trusted display.
 - [ ] Switch to Finder or another app while Touch ID is pending. A late successful reply must not unlock the old target.
 - [ ] Quit/relaunch the target app: it needs a new fingerprint. Restart OpenLocker: no grant survives.

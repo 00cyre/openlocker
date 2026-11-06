@@ -298,10 +298,10 @@
       class="clip"
       data-start="10"
       data-duration="2"
-      data-beat="Switch tabs. It locks again."
+      data-beat="Switch tabs. Stay unlocked."
     >
-      <h2 class="heading">Switch tabs. It locks again.</h2>
-      <p class="subheading">Private until your next touch.</p>
+      <h2 class="heading">Switch tabs. Stay unlocked.</h2>
+      <p class="subheading">Activity restarts the 5-minute timer.</p>
     </div>
     <div id="chrome-browser" class="screen">
       <div class="browser-tabs">
@@ -334,7 +334,7 @@
       </div>
       <div class="browser-toolbar">
         <span>‹</span><span>›</span><span>↻</span>
-        <div class="address">example.com</div>
+        <div class="address" id="chrome-address">example.com</div>
         <div id="chrome-extension" class="extension-button">
           <svg viewBox="0 0 32 32" fill="none" aria-hidden="true">
             <path
@@ -452,7 +452,7 @@
           <div class="domain-pill">example.com</div>
           <p class="locked-description">A quick touch, and you’re back in.</p>
           <div class="primary-button">Unlock with Touch ID</div>
-          <p class="locked-hint">Relocks when you switch tabs</p>
+          <p class="locked-hint">Relocks after 5 minutes idle</p>
         </div>
       </div>
       <div
@@ -513,7 +513,7 @@
       >
         <div class="other-page">
           <h3>Onto the next thing.</h3>
-          <p>Your other tab is locked again.</p>
+          <p>Your other tab stays unlocked.</p>
         </div>
       </div>
     </div>
@@ -587,6 +587,7 @@
         { opacity: 1, duration: 0.15 },
         6.6,
       );
+      tl.to("#chrome-touch > .touch-icon, #chrome-touch > .touch-title, #chrome-touch > .touch-detail, #chrome-touch > .touch-cancel", { opacity: 0, duration: 0.1 }, 6.6);
       tl.to("#chrome-touch", { opacity: 0, scale: 0.97, duration: 0.2 }, 7.1);
       tl.to("#chrome-locked-page", { opacity: 0, duration: 0.18 }, 7.3);
       tl.set("#chrome-pointer", { x: 1050, y: 700, opacity: 1 }, 8.8);
@@ -600,7 +601,8 @@
         { scale: 1, duration: 0.14 },
         9.95,
       );
-      tl.set("#chrome-tab-lock", { opacity: 1 }, 10);
+
+      tl.set("#chrome-address", { textContent: "other.example" }, 10);
       tl.set("#chrome-tab-main", { background: "#dfe4d8" }, 10);
       tl.set("#chrome-tab-other", { background: "#f7f8f4" }, 10);
       tl.to("#chrome-pointer", { opacity: 0, duration: 0.2 }, 10.35);

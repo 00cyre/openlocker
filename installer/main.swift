@@ -67,7 +67,7 @@ final class InstallerDelegate: NSObject, NSApplicationDelegate {
         text("✓  Apple Silicon + Intel\n✓  No Terminal, Xcode, or admin password\n✓  No accounts or cloud")
         button("Install OpenLocker", action: #selector(install), primary: true)
         text("Mac app locking needs Accessibility permission. Chrome will ask you to load the extension once. We'll guide you through both.", size: 12)
-        text("Version 0.1.4 · macOS 13+ · Google Chrome 120+", size: 11)
+        text("Version 0.1.5 · macOS 13+ · Google Chrome 120+", size: 11)
     }
     @objc private func install() {
         if !NSRunningApplication.runningApplications(withBundleIdentifier: "cc.openlocker.mac").isEmpty {

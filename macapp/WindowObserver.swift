@@ -5,19 +5,18 @@ final class WindowObserver {
     private let application: AXUIElement
     private var observer: AXObserver?
     private var watched: [AXUIElement] = []
-    private var tracker = MinimizeTracker()
-    private let onMinimize: () -> Void
+    private let onWindowChange: () -> Void
 
-    init(pid: pid_t, onMinimize: @escaping () -> Void) {
+    init(pid: pid_t, onWindowChange: @escaping () -> Void) {
         self.application = AXUIElementCreateApplication(pid)
-        self.onMinimize = onMinimize
+        self.onWindowChange = onWindowChange
         AXUIElementSetMessagingTimeout(application, 0.15)
         var created: AXObserver?
         if AXObserverCreate(pid, { _, _, notification, reference in
             guard let reference else { return }
             let watcher = Unmanaged<WindowObserver>.fromOpaque(reference).takeUnretainedValue()
-            if notification as String == kAXWindowMiniaturizedNotification { watcher.onMinimize() }
-            else { watcher.refresh() }
+            watcher.refresh()
+            watcher.onWindowChange()
         }, &created) == .success, let created {
             observer = created
             let pointer = Unmanaged.passUnretained(self).toOpaque()
@@ -33,18 +32,14 @@ final class WindowObserver {
         var value: CFTypeRef?
         guard AXUIElementCopyAttributeValue(application, kAXWindowsAttribute as CFString, &value) == .success,
               let windows = value as? [AXUIElement] else { return }
-        var states: [Int: Bool] = [:]
         for window in windows {
             if !watched.contains(where: { CFEqual($0, window) }), let observer {
                 AXObserverAddNotification(observer, window, kAXWindowMiniaturizedNotification as CFString, Unmanaged.passUnretained(self).toOpaque())
+                AXObserverAddNotification(observer, window, kAXWindowDeminiaturizedNotification as CFString, Unmanaged.passUnretained(self).toOpaque())
                 watched.append(window)
             }
-            var minimized: CFTypeRef?
-            if AXUIElementCopyAttributeValue(window, kAXMinimizedAttribute as CFString, &minimized) == .success,
-               let flag = minimized as? Bool { states[Int(truncatingIfNeeded: CFHash(window))] = flag }
         }
         watched.removeAll { old in !windows.contains { CFEqual(old, $0) } }
-        if tracker.update(states) { onMinimize() }
     }
     func restoreAWindow() {
         var value: CFTypeRef?

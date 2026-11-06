@@ -34,10 +34,11 @@ test('persistent rules redirect main frames and block protected embeds', () => {
   assert.equal(rules[1].action.type, 'block');
   assert.deepEqual(rules[1].condition.excludedResourceTypes, ['main_frame']);
 });
-test('allow rules apply only to one tab and one domain', () => {
-  const rule = grantRule({ tabId: 17, domain: 'example.com' });
+test('allow rules apply to one domain across tabs with stable unique IDs', () => {
+  const rule = grantRule({ domain: 'example.com' }, 17);
   assert.deepEqual(rule.condition.requestDomains, ['example.com']);
-  assert.deepEqual(rule.condition.tabIds, [17]);
+  assert.equal(rule.condition.tabIds, undefined);
+  assert.equal(rule.id, 18);
   assert.ok(rule.condition.resourceTypes.includes('main_frame'));
   assert.ok(rule.priority > domainRules(['example.com'], base)[0].priority);
 });

@@ -1,5 +1,5 @@
 import { updateStatus } from './updates.js';
-import { HOST, MAX_DOMAINS, normalizeDomain, protectedDomain, domainRules, grantRule, lockedURL, originalURL, trustedPage, webURL, matches } from './core.js';
+import { HOST, MAX_DOMAINS, IDLE_SECONDS, normalizeDomain, protectedDomain, domainRules, grantRule, lockedURL, originalURL, trustedPage, webURL, matches } from './core.js';
 
 const base = chrome.runtime.getURL('');
 let tail = Promise.resolve();
@@ -14,6 +14,9 @@ const serial = task => {
 const local = () => chrome.storage.local.get({ domains: [] });
 const session = () => chrome.storage.session.get({ grants: [] });
 const fail = message => { throw new Error(message); };
+const allows = (url, grants) => !!webURL(url) && grants.some(g => matches(webURL(url).hostname, g.domain));
+const activityState = () => chrome.idle.queryState(IDLE_SECONDS).catch(() => 'idle');
+chrome.idle.setDetectionInterval(IDLE_SECONDS);
 
 async function syncDomains(domains) {
   const current = await chrome.declarativeNetRequest.getDynamicRules();
@@ -31,19 +34,22 @@ async function shieldTabs(domains, grants = []) {
   await Promise.all(tabs.map(async tab => {
     const url = tab.pendingUrl || tab.url;
     const domain = protectedDomain(url, domains);
-    if (!domain || grants.some(g => g.tabId === tab.id && matches(webURL(url).hostname, g.domain))) return;
+    if (!domain || allows(url, grants)) return;
     try { await chrome.tabs.update(tab.id, { url: lockedURL(base, url) }); } catch { /* Tab may have closed. */ }
   }));
 }
 
-async function revoke(exceptTabId = null) {
-  // Returning from the system Touch ID sheet to the same tab is not a tab switch.
-  if (exceptTabId === null || pendingUnlock?.tabId !== exceptTabId) generation++;
-  const { grants } = await session();
-  const keep = grants.filter(g => g.tabId === exceptTabId);
-  await setGrants(keep);
+async function revoke() {
+  generation++;
+  await setGrants([]);
   const { domains } = await local();
-  await shieldTabs(domains, keep);
+  await shieldTabs(domains);
+}
+
+async function expireIfInactive() {
+  const inactive = await activityState() !== 'active';
+  if (inactive) await revoke();
+  return inactive;
 }
 
 // Dynamic rules survive restarts. Session allow rules never survive a browser restart.
@@ -52,8 +58,11 @@ const ready = serial(async () => {
   await chrome.storage.session.setAccessLevel({ accessLevel: 'TRUSTED_CONTEXTS' });
   const { domains } = await local();
   const { grants } = await session();
-  const tabs = await chrome.tabs.query({ active: true });
-  const keep = grants.filter(g => tabs.some(t => t.id === g.tabId && protectedDomain(originalURL(t.pendingUrl || t.url, base), domains) === g.domain));
+  // A worker suspension is not a browser restart. Preserve domain sessions
+  // while the user is active, including background tabs and other windows.
+  // Old per-tab grants are intentionally not migrated into broader grants.
+  const active = await activityState() === 'active';
+  const keep = active ? grants.filter(g => g.tabId === undefined && domains.includes(g.domain)) : [];
   await syncDomains(domains);
   await setGrants(keep);
   await shieldTabs(domains, keep);
@@ -78,13 +87,14 @@ async function authenticate(domain) {
 }
 
 async function snapshot(tabId) {
+  await expireIfInactive();
   const { domains } = await local();
   const { grants } = await session();
   let tab;
   if (Number.isInteger(tabId)) { try { tab = await chrome.tabs.get(tabId); } catch {} }
   const url = originalURL(tab?.pendingUrl || tab?.url, base);
   const domain = protectedDomain(url, domains);
-  return { domains, url, domain, unlocked: !!url && grants.some(g => g.tabId === tabId && matches(webURL(url).hostname, g.domain)), extensionId: chrome.runtime.id };
+  return { domains, url, domain, unlocked: allows(url, grants), extensionId: chrome.runtime.id };
 }
 
 async function handle(message, sender) {
@@ -95,10 +105,11 @@ async function handle(message, sender) {
   if (type === 'GUARD') {
     if (!sender.tab || sender.frameId !== 0 || !webURL(sender.url)) fail('Invalid page.');
     return serial(async () => {
+      await expireIfInactive();
       const { domains } = await local();
       const { grants } = await session();
       const domain = protectedDomain(sender.url, domains);
-      const allowed = !domain || grants.some(g => g.tabId === sender.tab.id && matches(webURL(sender.url).hostname, g.domain));
+      const allowed = !domain || allows(sender.url, grants);
       return { allowed, redirect: allowed ? null : lockedURL(base, sender.url) };
     });
   }
@@ -139,20 +150,33 @@ async function handle(message, sender) {
     const { domains } = await local();
     const domain = protectedDomain(url, domains);
     if (!domain) fail('This site is no longer protected.');
+    // A lock page in another tab may predate this domain's authentication.
+    // Restore it without requesting another fingerprint during the idle session.
+    const restored = await serial(async () => {
+      if (await expireIfInactive()) fail('Your Mac is idle or locked. Return to this tab to unlock it.');
+      const { grants } = await session();
+      if (!allows(url, grants)) return false;
+      const current = await chrome.tabs.get(sender.tab.id);
+      if (current.url !== sender.url) fail('The tab changed. Try again.');
+      await chrome.tabs.update(sender.tab.id, { url });
+      return true;
+    });
+    if (restored) return {};
     if (pendingUnlock) fail('A Touch ID request is already open.');
     const attempt = { tabId: sender.tab.id, url: sender.url, generation };
     pendingUnlock = attempt;
     try {
     await authenticate(domain);
     return await serial(async () => {
+      if (await expireIfInactive()) fail('Your Mac became idle or locked. Try unlocking again.');
       const current = await chrome.tabs.get(sender.tab.id);
       if (generation !== attempt.generation || current.url !== sender.url || !current.active) fail('The tab changed. Try unlocking again.');
       const latest = await local();
       if (protectedDomain(url, latest.domains) !== domain) fail('The domain settings changed. Try again.');
       const { grants } = await session();
-      await setGrants([...grants.filter(g => g.tabId !== sender.tab.id), { tabId: sender.tab.id, domain }]);
+      await setGrants([...grants.filter(g => g.domain !== domain), { domain }]);
       try { await chrome.tabs.update(sender.tab.id, { url }); }
-      catch (error) { await setGrants(grants.filter(g => g.tabId !== sender.tab.id)); throw error; }
+      catch (error) { await setGrants(grants); throw error; }
       return {};
     });
     } finally { if (pendingUnlock === attempt) pendingUnlock = null; }
@@ -178,26 +202,25 @@ chrome.runtime.onMessage.addListener((message, sender, respond) => {
   return true;
 });
 const event = task => { serial(async () => { await ready; await task(); }).catch(() => {}); };
-chrome.tabs.onActivated.addListener(({ tabId }) => event(() => revoke(tabId)));
+// Switching is activity, not a reason to revoke an authenticated session.
+// It still invalidates a fingerprint request for a tab the user left.
+chrome.tabs.onActivated.addListener(({ tabId }) => {
+  if (pendingUnlock && pendingUnlock.tabId !== tabId) generation++;
+});
 chrome.windows.onFocusChanged.addListener(windowId => {
   if (windowId !== chrome.windows.WINDOW_ID_NONE) event(async () => {
     const [tab] = await chrome.tabs.query({ active: true, windowId });
-    await revoke(tab?.id);
+    if (pendingUnlock && pendingUnlock.tabId !== tab?.id) generation++;
   });
 });
-chrome.tabs.onRemoved.addListener(tabId => event(async () => {
-  const { grants } = await session();
-  await setGrants(grants.filter(g => g.tabId !== tabId));
-}));
+chrome.tabs.onRemoved.addListener(tabId => { if (pendingUnlock?.tabId === tabId) generation++; });
 chrome.tabs.onUpdated.addListener((tabId, change) => {
   if (!change.url) return;
   if (pendingUnlock?.tabId === tabId && change.url !== pendingUnlock.url) generation++;
   event(async () => {
     const { grants } = await session();
-    const keep = grants.filter(g => g.tabId !== tabId || (webURL(change.url) && matches(webURL(change.url).hostname, g.domain)));
-    if (keep.length !== grants.length) { generation++; await setGrants(keep); }
     const { domains } = await local();
-    await shieldTabs(domains, keep);
+    await shieldTabs(domains, grants);
   });
 });
 chrome.webNavigation.onCommitted.addListener(details => {
@@ -207,7 +230,7 @@ chrome.webNavigation.onCommitted.addListener(details => {
     await shieldTabs(domains, grants);
   });
 });
-chrome.idle.onStateChanged.addListener(state => { if (state === 'locked') event(() => revoke()); });
+chrome.idle.onStateChanged.addListener(state => { if (state !== 'active') event(() => revoke()); });
 chrome.runtime.onStartup.addListener(() => event(() => revoke()));
 chrome.runtime.onInstalled.addListener(details => event(async () => {
   await revoke();
