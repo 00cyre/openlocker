@@ -2,6 +2,7 @@
 build/
 dist/
 node_modules/
+.waveform-cache/
 *.pem
 *.p12
 *.key

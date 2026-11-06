@@ -1,78 +1,23 @@
-<!doctype html>
-<html
-  lang="en"
-  data-composition-variables='[{"id":"paper","type":"color","label":"Paper","default":"#f5f5f0"},{"id":"green","type":"color","label":"Forest","default":"#334b35"},{"id":"lime","type":"color","label":"Sage","default":"#d8edb4"},{"id":"tagline","type":"string","label":"Closing line","default":"A little more privacy."}]'
->
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=1920, height=1080" />
-    <title>OpenLocker — Touch to unlock</title>
-    <script src="assets/vendor/gsap.min.js"></script>
-    <link rel="stylesheet" href="assets/demo.css" />
-  </head>
-  <body>
-    <div
-      id="root"
-      data-composition-id="main"
-      data-start="0"
-      data-duration="35"
-      data-width="1920"
-      data-height="1080"
-      data-fps="30"
-    >
-      <div
-        id="intro"
-        class="clip scene"
-        data-composition-id="intro"
-        data-composition-src="compositions/intro.html"
-        data-start="0"
-        data-duration="3"
-        data-track-index="1"
-        data-track-kind="graphics"
-        data-width="1920"
-        data-height="1080"
-      ></div>
-      <div
-        id="chrome"
-        class="clip scene"
-        data-composition-id="chrome"
-        data-composition-src="compositions/chrome.html"
-        data-start="3"
-        data-duration="12"
-        data-track-index="1"
-        data-track-kind="graphics"
-        data-width="1920"
-        data-height="1080"
-      ></div>
-      <div
-        id="mac"
-        class="clip scene"
-        data-composition-id="mac"
-        data-composition-src="compositions/mac.html"
-        data-start="15"
-        data-duration="17"
-        data-track-index="1"
-        data-track-kind="graphics"
-        data-width="1920"
-        data-height="1080"
-      ></div>
-      <div
-        id="outro"
-        class="clip scene"
-        data-composition-id="outro"
-        data-composition-src="compositions/outro.html"
-        data-start="32"
-        data-duration="3"
-        data-track-index="1"
-        data-track-kind="graphics"
-        data-width="1920"
-        data-height="1080"
-      ></div>
-    </div>
-    <script>
-      const tl = gsap.timeline({ paused: true });
-      window.__timelines = window.__timelines || {};
-      window.__timelines.main = tl;
-    </script>
-  </body>
-</html>
+<!doctype html><html lang="en" data-composition-variables="[{&quot;id&quot;: &quot;brand&quot;, &quot;type&quot;: &quot;string&quot;, &quot;label&quot;: &quot;Product name&quot;, &quot;default&quot;: &quot;OpenLocker&quot;}, {&quot;id&quot;: &quot;repository&quot;, &quot;type&quot;: &quot;string&quot;, &quot;label&quot;: &quot;Repository&quot;, &quot;default&quot;: &quot;github.com/00cyre/openlocker&quot;}, {&quot;id&quot;: &quot;closing&quot;, &quot;type&quot;: &quot;string&quot;, &quot;label&quot;: &quot;Closing line&quot;, &quot;default&quot;: &quot;Open source. Local. Yours.&quot;}]"><head><meta charset="UTF-8"><meta name="viewport" content="width=1920,height=1080"><title>OpenLocker — Your Mac. Your fingerprint.</title><script src="assets/vendor/gsap.min.js"></script><link rel="stylesheet" href="assets/demo.css"></head><body><div id="root" data-composition-id="main" data-start="0" data-duration="38.5" data-width="1920" data-height="1080" data-fps="30" data-layout-allow-overlap>
+<div id="intro" class="clip scene" data-composition-id="intro" data-composition-src="compositions/intro.html" data-start="0" data-duration="4" data-track-index="1" data-track-kind="graphics" data-width="1920" data-height="1080"></div>
+<div id="chrome" class="clip scene" data-composition-id="chrome" data-composition-src="compositions/chrome.html" data-start="3.6" data-duration="12.4" data-track-index="1" data-track-kind="graphics" data-width="1920" data-height="1080"></div>
+<div id="mac" class="clip scene" data-composition-id="mac" data-composition-src="compositions/mac.html" data-start="15.6" data-duration="18" data-track-index="1" data-track-kind="graphics" data-width="1920" data-height="1080"></div>
+<div id="outro" class="clip scene" data-composition-id="outro" data-composition-src="compositions/outro.html" data-start="33" data-duration="5.5" data-track-index="1" data-track-kind="graphics" data-width="1920" data-height="1080"></div>
+<audio id="voice-intro" src="assets/audio/voice-intro.wav" data-start="0.2" data-duration="2.2756" data-track-index="3" data-audio-group="voiceover" data-volume="1.15" data-fade-in=".015" data-fade-out=".04"></audio>
+<audio id="voice-web" src="assets/audio/voice-web.wav" data-start="3.95" data-duration="3.8081" data-track-index="3" data-audio-group="voiceover" data-volume="1.15" data-fade-in=".015" data-fade-out=".04"></audio>
+<audio id="voice-touch" src="assets/audio/voice-touch.wav" data-start="7.9" data-duration="4.6440" data-track-index="3" data-audio-group="voiceover" data-volume="1.15" data-fade-in=".015" data-fade-out=".04"></audio>
+<audio id="voice-app" src="assets/audio/voice-app.wav" data-start="16.0" data-duration="3.8081" data-track-index="3" data-audio-group="voiceover" data-volume="1.15" data-fade-in=".015" data-fade-out=".04"></audio>
+<audio id="voice-blur" src="assets/audio/voice-blur.wav" data-start="19.9" data-duration="3.9938" data-track-index="3" data-audio-group="voiceover" data-volume="1.15" data-fade-in=".015" data-fade-out=".04"></audio>
+<audio id="voice-active" src="assets/audio/voice-active.wav" data-start="25.1" data-duration="3.9474" data-track-index="3" data-audio-group="voiceover" data-volume="1.15" data-fade-in=".015" data-fade-out=".04"></audio>
+<audio id="voice-idle" src="assets/audio/voice-idle.wav" data-start="29.9" data-duration="3.0650" data-track-index="3" data-audio-group="voiceover" data-volume="1.15" data-fade-in=".015" data-fade-out=".04"></audio>
+<audio id="voice-end" src="assets/audio/voice-end.wav" data-start="34.45" data-duration="2.4613" data-track-index="3" data-audio-group="voiceover" data-volume="1.15" data-fade-in=".015" data-fade-out=".04"></audio>
+<audio id="sfx-intro-stage" src="assets/audio/sfx-sweep.wav" data-start="3.55" data-duration="1.2000" data-track-index="4" data-audio-group="sfx" data-volume="0.5" data-fade-in=".015" data-fade-out=".1"></audio>
+<audio id="sfx-website-lock" src="assets/audio/sfx-reveal.wav" data-start="7.52" data-duration="0.4800" data-track-index="4" data-audio-group="sfx" data-volume="0.6" data-fade-in=".015" data-fade-out=".1"></audio>
+<audio id="sfx-website-unlock" src="assets/audio/sfx-release.wav" data-start="10.3" data-duration="0.8800" data-track-index="4" data-audio-group="sfx" data-volume="0.5" data-fade-in=".015" data-fade-out=".1"></audio>
+<audio id="sfx-mac-stage" src="assets/audio/sfx-sweep.wav" data-start="15.55" data-duration="1.2000" data-track-index="4" data-audio-group="sfx" data-volume="0.45" data-fade-in=".015" data-fade-out=".1"></audio>
+<audio id="sfx-mac-lock" src="assets/audio/sfx-reveal.wav" data-start="19.42" data-duration="0.4800" data-track-index="4" data-audio-group="sfx" data-volume="0.6" data-fade-in=".015" data-fade-out=".1"></audio>
+<audio id="sfx-mac-unlock" src="assets/audio/sfx-release.wav" data-start="22.3" data-duration="0.8800" data-track-index="4" data-audio-group="sfx" data-volume="0.5" data-fade-in=".015" data-fade-out=".1"></audio>
+<audio id="sfx-idle-lock" src="assets/audio/sfx-reveal.wav" data-start="31.94" data-duration="0.4800" data-track-index="4" data-audio-group="sfx" data-volume="0.6" data-fade-in=".015" data-fade-out=".1"></audio>
+<audio id="sfx-closing" src="assets/audio/sfx-sweep.wav" data-start="33.05" data-duration="1.2000" data-track-index="4" data-audio-group="sfx" data-volume="0.5" data-fade-in=".015" data-fade-out=".1"></audio>
+<audio id="music" src="assets/audio/night-routine-excerpt.wav" data-start="0" data-duration="38.5" data-track-index="5" data-audio-group="music" data-volume=".42" data-fade-in=".45" data-fade-out="1.1" data-automation="{&quot;version&quot;:1,&quot;lanes&quot;:[{&quot;target&quot;:&quot;volume&quot;,&quot;points&quot;:[{&quot;t&quot;:0,&quot;v&quot;:0.45},{&quot;t&quot;:2.65,&quot;v&quot;:0.45},{&quot;t&quot;:3.0,&quot;v&quot;:1},{&quot;t&quot;:3.55,&quot;v&quot;:1},{&quot;t&quot;:3.85,&quot;v&quot;:0.45},{&quot;t&quot;:12.6,&quot;v&quot;:0.45},{&quot;t&quot;:12.95,&quot;v&quot;:1},{&quot;t&quot;:15.6,&quot;v&quot;:1},{&quot;t&quot;:15.9,&quot;v&quot;:0.45},{&quot;t&quot;:23.95,&quot;v&quot;:0.45},{&quot;t&quot;:24.25,&quot;v&quot;:0.85},{&quot;t&quot;:24.8,&quot;v&quot;:0.85},{&quot;t&quot;:25.0,&quot;v&quot;:0.45},{&quot;t&quot;:33.0,&quot;v&quot;:0.45},{&quot;t&quot;:33.3,&quot;v&quot;:0.9},{&quot;t&quot;:34.1,&quot;v&quot;:0.9},{&quot;t&quot;:34.4,&quot;v&quot;:0.45},{&quot;t&quot;:37.0,&quot;v&quot;:0.45},{&quot;t&quot;:37.3,&quot;v&quot;:1},{&quot;t&quot;:38.5,&quot;v&quot;:1}]}]}"></audio>
+</div><script>window.__timelines=window.__timelines||{};window.__timelines.main=gsap.timeline({paused:true});</script></body></html>

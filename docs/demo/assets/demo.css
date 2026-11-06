@@ -11,7 +11,7 @@
   font-display: block;
 }
 :root {
-  --paper: #f5f5f0;
+  --paper: #f4f3e9;
   --ink: #20251e;
   --green: #334b35;
   --lime: #d8edb4;
@@ -156,7 +156,7 @@ svg {
   margin-bottom: 12px;
 }
 .touch-detail {
-  font-size: 24px;
+  font-size: 26px;
   line-height: 1.4;
   color: #52594e;
 }
@@ -196,3 +196,16 @@ svg {
   width: 70%;
   height: 70%;
 }
+
+/* Editorial framing shared with the OpenComputer narrated showcase. */
+@font-face {font-family:"EB Garamond";src:url("fonts/EBGaramond-400.woff2") format("woff2");font-weight:400;font-display:block}
+.scene {background:transparent}
+.editor-brand {position:absolute;left:192px;top:136px;font:40px "EB Garamond",serif;color:#233d2c}
+.editor-rule {position:absolute;left:192px;top:207px;width:470px;height:1px;background:#bdc9b5}
+.editor-kicker {position:absolute;left:192px;top:293px;font-size:25px;letter-spacing:1.5px;color:#526943;text-transform:uppercase}
+.editor-kicker b {margin-right:18px}
+.heading {left:192px;top:357px;width:500px;font:82px/1.04 "EB Garamond",serif;letter-spacing:-2.4px;color:#233d2c}
+.subheading {left:192px;top:567px;width:490px;font-size:31px;line-height:1.45;letter-spacing:-.4px;color:#526943}
+.stage-viewport {position:absolute;left:750px;top:145px;width:978px;height:770px;overflow:hidden;border-radius:32px;background:#e0e8d9;border:1px solid #233d2c18;box-shadow:0 14px 35px #233d2c16}
+.product-camera {position:absolute;left:0;top:0;width:1920px;height:1080px;transform-origin:0 0}
+.demo-label {position:absolute;left:750px;top:939px;font-size:26px;color:#526943}

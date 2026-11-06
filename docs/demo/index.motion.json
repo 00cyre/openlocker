@@ -1,5 +1,5 @@
 {
-  "duration": 35,
+  "duration": 38.5,
   "assertions": [
     {
       "kind": "appearsBy",
@@ -8,11 +8,11 @@
     },
     {
       "kind": "staysInFrame",
-      "selector": "#chrome-browser"
+      "selector": "#chrome-viewport"
     },
     {
       "kind": "staysInFrame",
-      "selector": "#mac-desktop"
+      "selector": "#mac-viewport"
     },
     {
       "kind": "before",

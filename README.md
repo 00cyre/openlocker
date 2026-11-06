@@ -33,12 +33,12 @@
 ## See it in action
 
 <p align="center">
-  <a href="https://github.com/00cyre/openlocker/releases/download/v0.1.5/OpenLocker-demo.mp4"><img src="docs/assets/demo.gif" alt="OpenLocker demo: protect a website or Mac app, unlock automatically with Touch ID, and relock after five minutes of inactivity." width="960"></a>
+  <a href="https://github.com/00cyre/openlocker/releases/download/v0.1.6/OpenLocker-demo.mp4"><img src="docs/assets/demo.gif" alt="OpenLocker demo: protect a website or Mac app, unlock automatically with Touch ID, and relock after five minutes of inactivity." width="960"></a>
 </p>
 
 <p align="center">
-  A 35-second illustrated walkthrough, made with HyperFrames.<br>
-  <a href="https://github.com/00cyre/openlocker/releases/download/v0.1.5/OpenLocker-demo.mp4">Full video · 1080p</a> · <a href="docs/demo">Edit the HyperFrames project</a>
+  A 38-second illustrated walkthrough with ElevenLabs narration, made with HyperFrames.<br>
+  <a href="https://github.com/00cyre/openlocker/releases/download/v0.1.6/OpenLocker-demo.mp4">Watch with sound · 1080p</a> · <a href="docs/demo">Edit the HyperFrames project</a>
 </p>
 
 ## Get started

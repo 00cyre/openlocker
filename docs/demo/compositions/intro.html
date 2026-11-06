@@ -1,81 +1,5 @@
-<template
-  ><style>
-    #root {
-      position: absolute;
-      inset: 0;
-    }
-    .intro-brand {
-      position: absolute;
-      left: 192px;
-      top: 225px;
-      font-size: 36px;
-    }
-    .intro-title {
-      position: absolute;
-      left: 185px;
-      top: 340px;
-      font-size: 118px;
-      line-height: 1.05;
-      letter-spacing: -6px;
-      color: var(--green);
-    }
-    .intro-line {
-      position: absolute;
-      left: 193px;
-      top: 663px;
-      font-size: 42px;
-      letter-spacing: -1px;
-    }
-    .intro-icon {
-      position: absolute;
-      left: 1285px;
-      top: 345px;
-      width: 360px;
-      height: 360px;
-      border-radius: 86px;
-    }
-    .intro-foot {
-      position: absolute;
-      left: 195px;
-      top: 865px;
-      font-size: 29px;
-      color: var(--muted);
-    }
-  </style>
-  <div
-    id="root"
-    data-composition-id="intro"
-    data-duration="3"
-    data-width="1920"
-    data-height="1080"
-  >
-    <div class="brand intro-brand">
-      <svg
-        style="width: 42px; height: 42px"
-        viewBox="0 0 32 32"
-        fill="none"
-        aria-hidden="true"
-      >
-        <path
-          d="M10 14V9a6 6 0 0 1 12 0v5"
-          stroke="currentColor"
-          stroke-width="2.5"
-        />
-        <rect x="6" y="13" width="20" height="16" rx="5" fill="currentColor" />
-        <path
-          d="M16 19v5"
-          stroke="#d8edb4"
-          stroke-width="2.5"
-          stroke-linecap="round"
-        /></svg
-      >openlocker
-    </div>
-    <h1 id="intro-title" class="intro-title">
-      Private apps.<br />Private tabs.
-    </h1>
-    <p id="intro-line" class="intro-line">One fingerprint. You’re back in.</p>
-    <div id="intro-icon" class="intro-icon fp-box">
-      <svg viewBox="0 0 64 64" fill="none" aria-hidden="true">
+<template><style>#root{position:absolute;inset:0}#root{background:#f4f3e9}.intro-copy{position:absolute;left:192px;top:277px;width:1536px}.intro-copy h1{font:132px/1.02 "EB Garamond",serif;letter-spacing:-4px;color:#233d2c}.line{display:block}.mask{overflow:hidden;padding-bottom:.18em;margin-bottom:-.18em}.intro-copy p{font-size:34px;margin-top:44px;color:#526943}.intro-kicker{position:absolute;left:192px;top:180px;font-size:28px;letter-spacing:1.5px;text-transform:uppercase;color:#526943}.intro-mark{position:absolute;right:205px;top:160px;width:120px;height:120px;color:#334b35}.intro-rule{position:absolute;left:192px;top:780px;width:1536px;height:1px;background:#bdc9b5}.intro-brand{position:absolute;left:192px;top:820px;font:58px "EB Garamond",serif;color:#233d2c}</style>
+<div id="root" data-composition-id="intro" data-duration="4" data-width="1920" data-height="1080" data-layout-allow-overlap><div class="intro-kicker">A little more privacy</div><div class="intro-mark"><svg viewBox="0 0 64 64" fill="none" aria-hidden="true">
         <g stroke="currentColor" stroke-width="2.6" stroke-linecap="round">
           <path d="M11 25c2-10 10-17 21-17s20 8 21 19" />
           <path
@@ -85,28 +9,11 @@
             d="M9 49c5-6 7-12 6-18M24 49c5-7 5-14 5-20a3 3 0 0 1 6 0c0 10-1 20-8 29M20 56l3-4M39 47c3-8 3-15 3-18a10 10 0 0 0-20 0c0 7 0 12-4 18M49 49c4-9 4-15 4-19"
           />
         </g>
-      </svg>
-    </div>
-    <p class="intro-foot">Touch ID for your Mac + Chrome</p>
-  </div>
-  <script>
-    (() => {
-      const tl = gsap.timeline({ paused: true });
-      tl.fromTo(
-        "#intro-icon",
-        { scale: 0.86, rotation: -7 },
-        { scale: 1, rotation: 0, duration: 0.8, ease: "power3.out" },
-        0,
-      );
-      tl.fromTo(
-        "#intro-line",
-        { opacity: 0, y: 18 },
-        { opacity: 1, y: 0, duration: 0.45, ease: "power2.out" },
-        0.3,
-      );
-
-      window.__timelines = window.__timelines || {};
-      window.__timelines["intro"] = tl;
-    })();
-  </script></template
->
+      </svg></div><div class="intro-copy"><h1 id="intro-title"><span class="line mask"><span class="line first">Your apps. Your tabs.</span></span><span class="line mask"><span class="line second">Just for you.</span></span></h1><p>Touch ID for your Mac and Chrome</p></div><div class="intro-rule"></div><div class="intro-brand" data-var-text="brand">OpenLocker</div></div>
+<script>const tl=gsap.timeline({paused:true});tl.fromTo(".first",{y:22,opacity:.65},{y:0,opacity:1,duration:.85,ease:"power4.out"},0);
+tl.fromTo(".second",{y:50,opacity:0},{y:0,opacity:1,duration:.9,ease:"power4.out"},.16);
+tl.fromTo(".intro-copy p",{opacity:0},{opacity:1,duration:.6,ease:"sine.out"},.5);
+tl.fromTo(".intro-rule",{scaleX:0},{scaleX:1,duration:1.05,ease:"expo.out",transformOrigin:"left center"},.4);
+tl.fromTo(".intro-brand",{opacity:0},{opacity:1,duration:.6,ease:"sine.out"},.65);
+tl.to(".intro-copy,.intro-mark,.intro-brand,.intro-kicker,.intro-rule",{y:-24,opacity:0,duration:.35,stagger:.02,ease:"power3.in"},3.2);
+window.__timelines=window.__timelines||{};window.__timelines["intro"]=tl;</script></template>

@@ -1,0 +1,16 @@
+{
+  "provider": "ElevenLabs",
+  "voice": "Eric \u2014 Smooth, Trustworthy",
+  "voice_id": "cjVigY5qzO86Huf0OWal",
+  "model": "eleven_multilingual_v2",
+  "lines": {
+    "intro": "Your apps. Your tabs. A little more private.",
+    "web": "Open the extension. Choose Lock this site.",
+    "touch": "Touch ID opens automatically. One touch, and you're back in.",
+    "app": "For Mac apps, choose Lock an app. Then click its window.",
+    "blur": "Blurred until you unlock. Your window stays right there.",
+    "active": "Switch freely. Every action resets the five-minute timer.",
+    "idle": "Five minutes away? Everything locks again.",
+    "end": "Open Locker. Open source. Local. Yours."
+  }
+}

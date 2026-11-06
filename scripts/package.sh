@@ -11,7 +11,7 @@ with zipfile.ZipFile('dist/OpenLocker-0.1.6-source.zip', 'w', zipfile.ZIP_DEFLAT
     for folder in ['extension', 'native', 'shared', 'macapp', 'installer', 'scripts', 'tests', 'docs']:
         for file in sorted((root / folder).rglob('*')):
             # HyperFrames preview/render caches are local authoring artifacts.
-            if file.is_file() and file.name != '.DS_Store' and not {'.hyperframes', '.thumbnails', 'node_modules', 'renders'}.intersection(file.parts):
+            if file.is_file() and file.name != '.DS_Store' and not {'.hyperframes', '.thumbnails', '.waveform-cache', 'node_modules', 'renders'}.intersection(file.parts):
                 archive.write(file, 'openlocker/' + str(file))
     for name in ['README.md', 'LICENSE', 'PRIVACY.md', 'SECURITY.md', 'extension-id.txt', 'package.json', 'signing/release.cer', 'signing/README.md']:
         archive.write(name, 'openlocker/' + name)

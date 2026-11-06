@@ -1,16 +1,14 @@
-# A touch, and you’re back in
+# Your apps. Your tabs. Just for you.
 
-| Time | What happens | What a viewer learns |
+| Time | Picture | Narration |
 | --- | --- | --- |
-| 0–3s | Fingerprint beside “Private apps. Private tabs.” | OpenLocker protects both. |
-| 3–7.2s | Cursor opens the Chrome popup and clicks Lock this site. | Two clicks protect a domain. |
-| 7.2–10.7s | Lock page opens, then Touch ID appears without another click. Authentication succeeds. | Touch ID is automatic. |
-| 10.7–15s | Site is restored, then the cursor changes tabs and the domain stays unlocked. | Switching tabs preserves access while active. |
-| 15–19.5s | Menu icon → Lock an app → click Notes. | Protect an app by selecting its window. |
-| 19–22.9s | Protecting Notes immediately blurs the app; the gate and Touch ID open without another click. | A fingerprint restores access. |
-| 22.9–26.1s | The prompt closes and the same window becomes clear. | Continue in place, without minimizing. |
-| 26.1–29s | Click the desktop; Notes stays clear. | Switching apps preserves access. |
-| 29–32s | Explicit time jump: five minutes without input. Notes blurs and locks. | The idle timeout relocks; activity restarts the timer. |
-| 32–35s | OpenLocker name, closing line, GitHub path. | Where to get it. |
+| 0–3.6 | Cream opening, serif promise, product fingerprint | Your apps. Your tabs. A little more private. |
+| 3.6–7.8 | 01 / Websites. Extension icon → popup → Lock this site | Open the extension. Choose Lock this site. |
+| 7.8–15.6 | 02 / Touch ID. Automatic prompt, fingerprint succeeds, page returns; switch tabs | Touch ID opens automatically. One touch, and you're back in. |
+| 15.6–19.5 | 03 / Mac apps. Menu icon → Lock an app → select Notes | For Mac apps, choose Lock an app. Then click its window. |
+| 19.5–26.1 | 04 / Stay in place. Window blurs; Touch ID appears; same window clears | Blurred until you unlock. Your window stays right there. |
+| 26.1–29.6 | 05 / Stay in flow. Switch away; Notes stays clear | Switch freely. Every action resets the five-minute timer. |
+| 29.6–33 | 06 / When you're away. Explicit five-minute jump; relock at 31.9 s | Five minutes away? Everything locks again. |
+| 33–38.5 | Forest field, OpenLocker, repository link | Open Locker. Open source. Local. Yours. |
 
-Sample content only. The Touch ID sheet is a simplified illustration of macOS; it does not request or capture real biometrics. Silent by design for GitHub README playback.
+The stage is labeled “Illustrated walkthrough · sample content.” The simplified Touch ID sheet never collects fingerprints. The music and restrained effects sit beneath eight separate narration phrases.

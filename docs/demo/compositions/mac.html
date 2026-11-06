@@ -3,6 +3,7 @@
     #root {
       position: absolute;
       inset: 0;
+      background: var(--paper);
     }
     .note-content {
       display: flex;
@@ -287,56 +288,16 @@
   <div
     id="root"
     data-composition-id="mac"
-    data-duration="17"
+    data-duration="18"
     data-width="1920"
     data-height="1080"
   >
-    <div
-      id="mac-title-pick"
-      class="clip"
-      data-start="0"
-      data-duration="4"
-      data-beat="Pick an app to protect."
-    >
-      <h2 class="heading">Pick an app to protect.</h2>
-      <p class="subheading">
-        Menu-bar icon → “Lock an app…” → click its window.
-      </p>
-    </div>
-    <div
-      id="mac-title-touch"
-      class="clip"
-      data-start="4"
-      data-duration="3.9"
-      data-beat="Touch ID is already waiting."
-    >
-      <h2 class="heading">Touch ID is already waiting.</h2>
-      <p class="subheading">No extra click. Just your fingerprint.</p>
-    </div>
-    <div
-      id="mac-title-back"
-      class="clip"
-      data-start="7.9"
-      data-duration="3.2"
-      data-beat="Your window stays right here."
-    >
-      <h2 class="heading">Your window stays right here.</h2>
-      <p class="subheading">Unlock and carry on.</p>
-    </div>
-    <div
-      id="mac-title-away"
-      class="clip"
-      data-start="11.1"
-      data-duration="2.9"
-      data-beat="Switch apps. Stay unlocked."
-    >
-      <h2 class="heading">Switch apps. Stay unlocked.</h2>
-      <p class="subheading">Every input restarts the 5-minute timer.</p>
-    </div>
-    <div id="mac-title-idle" class="clip" data-start="14" data-duration="3" data-beat="Five minutes idle">
-      <h2 class="heading">5 minutes idle. Locked again.</h2>
-      <p class="subheading">Time jump: five minutes without input.</p>
-    </div>
+<div class="editor-brand">OpenLocker</div><div class="editor-rule"></div>
+<div id="mac-title-pick" class="clip" data-start="0" data-duration="3.9" data-beat="Pick a window. Protect its app."><div class="editor-kicker"><b>03</b>Mac apps</div><h2 class="heading">Pick a window.<br>Protect its app.</h2><p class="subheading">Menu icon → Lock an app…<br>Then click a window.</p></div>
+<div id="mac-title-touch" class="clip" data-start="3.9" data-duration="6.6" data-beat="Blurred. Until it’s you."><div class="editor-kicker"><b>04</b>Stay in place</div><h2 class="heading">Blurred.<br>Until it’s you.</h2><p class="subheading">Touch ID opens automatically.<br>Your window stays right here.</p></div>
+<div id="mac-title-away" class="clip" data-start="10.5" data-duration="3.5" data-beat="Switch freely."><div class="editor-kicker"><b>05</b>Stay in flow</div><h2 class="heading">Switch freely.</h2><p class="subheading">Each action resets<br>the five-minute idle timer.</p></div>
+<div id="mac-title-idle" class="clip" data-start="14" data-duration="4" data-beat="Five minutes away?"><div class="editor-kicker"><b>06</b>When you’re away</div><h2 class="heading">Five minutes<br>away?</h2><p class="subheading">Time jump · 5 minutes<br>without keyboard or mouse input.</p></div>
+<div id="mac-viewport" class="stage-viewport" data-layout-allow-overflow><div id="mac-camera" class="product-camera" data-layout-allow-overflow>
     <div id="mac-desktop" class="screen desktop">
       <div class="menubar">
         <strong>●</strong><strong id="mac-frontmost">Notes</strong><span>File</span
@@ -539,14 +500,13 @@
       <div
         id="mac-relock-clip"
         class="clip"
-        data-start="14.1"
-        data-duration="2.9"
+        data-start="16.3"
+        data-duration="1.7"
         data-beat="App relocked"
         data-layout-allow-occlusion
       >
         <div
           class="mac-shield"
-          data-layout-allow-overlap
           data-layout-allow-overlap
         >
           <div>
@@ -567,6 +527,7 @@
         />
       </svg>
     </div>
+</div></div><div class="demo-label">Illustrated walkthrough · sample content</div>
   </div>
   <script>
     (() => {
@@ -574,13 +535,13 @@
       tl.fromTo(
         "#mac-desktop",
         { y: 24, scale: 0.98 },
-        { y: 0, scale: 1, duration: 0.55, ease: "power3.out" },
+        { y: 0, scale: 1, duration: 0.8, ease: "power4.out" },
         0,
       );
       tl.fromTo(
         "#mac-pointer",
         { x: 1360, y: 550 },
-        { x: 1489, y: 300, duration: 0.55, ease: "power2.inOut" },
+        { x: 1489, y: 300, duration: 0.55, ease: "power3.inOut" },
         0.2,
       );
       tl.to("#mac-pointer", { scale: 0.85, duration: 0.1 }, 0.85).to(
@@ -596,7 +557,7 @@
       );
       tl.to(
         "#mac-pointer",
-        { x: 1350, y: 377, duration: 0.5, ease: "power2.inOut" },
+        { x: 1350, y: 377, duration: 0.5, ease: "power3.inOut" },
         1.65,
       );
       tl.to("#mac-pointer", { scale: 0.85, duration: 0.1 }, 2.35).to(
@@ -606,7 +567,7 @@
       );
       tl.to(
         "#mac-pointer",
-        { x: 1000, y: 650, duration: 0.55, ease: "power2.inOut" },
+        { x: 1000, y: 650, duration: 0.55, ease: "power3.inOut" },
         2.6,
       );
       tl.to("#mac-pointer", { scale: 0.85, duration: 0.1 }, 3.55).to(
@@ -659,7 +620,7 @@
       tl.set("#mac-pointer", { x: 1000, y: 650, opacity: 1 }, 10.2);
       tl.to(
         "#mac-pointer",
-        { x: 1620, y: 865, duration: 0.65, ease: "power2.inOut" },
+        { x: 1620, y: 865, duration: 0.65, ease: "power3.inOut" },
         10.4,
       );
       tl.to("#mac-pointer", { scale: 0.85, duration: 0.1 }, 11.05).to(
@@ -668,8 +629,31 @@
         11.15,
       );
       tl.set("#mac-frontmost", { textContent: "Finder" }, 11.2);
-      tl.to("#mac-notes", { filter: "blur(16px)", duration: 0.2 }, 14.1);
+      tl.to("#mac-notes", { filter: "blur(16px)", duration: 0.3 }, 16.3);
       tl.to("#mac-pointer", { opacity: 0, duration: 0.2 }, 11.6);
+tl.fromTo("#mac-title-pick .editor-kicker",{opacity:0},{opacity:1,duration:.4,ease:"sine.out"},0.05);
+tl.fromTo("#mac-title-pick .heading",{y:24,opacity:0},{y:0,opacity:1,duration:.75,ease:"power4.out"},0.08);
+tl.fromTo("#mac-title-pick .subheading",{opacity:0},{opacity:1,duration:.55,ease:"sine.out"},0.26);
+tl.to("#mac-title-pick .heading,#mac-title-pick .subheading,#mac-title-pick .editor-kicker",{y:-12,opacity:0,duration:.23,ease:"power2.in"},3.66);
+tl.fromTo("#mac-title-touch .editor-kicker",{opacity:0},{opacity:1,duration:.4,ease:"sine.out"},3.9499999999999997);
+tl.fromTo("#mac-title-touch .heading",{y:24,opacity:0},{y:0,opacity:1,duration:.75,ease:"power4.out"},3.98);
+tl.fromTo("#mac-title-touch .subheading",{opacity:0},{opacity:1,duration:.55,ease:"sine.out"},4.16);
+tl.to("#mac-title-touch .heading,#mac-title-touch .subheading,#mac-title-touch .editor-kicker",{y:-12,opacity:0,duration:.23,ease:"power2.in"},10.26);
+tl.fromTo("#mac-title-away .editor-kicker",{opacity:0},{opacity:1,duration:.4,ease:"sine.out"},10.55);
+tl.fromTo("#mac-title-away .heading",{y:24,opacity:0},{y:0,opacity:1,duration:.75,ease:"power4.out"},10.58);
+tl.fromTo("#mac-title-away .subheading",{opacity:0},{opacity:1,duration:.55,ease:"sine.out"},10.76);
+tl.to("#mac-title-away .heading,#mac-title-away .subheading,#mac-title-away .editor-kicker",{y:-12,opacity:0,duration:.23,ease:"power2.in"},13.76);
+tl.fromTo("#mac-title-idle .editor-kicker",{opacity:0},{opacity:1,duration:.4,ease:"sine.out"},14.05);
+tl.fromTo("#mac-title-idle .heading",{y:24,opacity:0},{y:0,opacity:1,duration:.75,ease:"power4.out"},14.08);
+tl.fromTo("#mac-title-idle .subheading",{opacity:0},{opacity:1,duration:.55,ease:"sine.out"},14.26);
+tl.set("#mac-camera",{x:-117,y:-6,scale:.63},0);
+tl.fromTo("#mac-viewport",{y:30,opacity:1},{y:0,opacity:1,duration:.85,ease:"power4.out"},0);
+tl.fromTo(".editor-brand,.editor-rule,.demo-label",{opacity:1},{opacity:1,duration:.6,stagger:.06,ease:"sine.out"},.08);
+tl.to("#mac-camera",{x:-1061,y:-262,scale:1.18,duration:.85,ease:"power3.inOut"},.05);
+tl.to("#mac-camera",{x:-117,y:-6,scale:.63,duration:.8,ease:"power3.inOut"},2.4);
+tl.to("#mac-camera",{x:-586,y:-309,scale:1.12,duration:.85,ease:"power3.inOut"},3.9);
+tl.to("#mac-camera",{x:-117,y:-6,scale:.63,duration:.85,ease:"power3.inOut"},8.1);
+
       window.__timelines = window.__timelines || {};
       window.__timelines["mac"] = tl;
     })();

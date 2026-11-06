@@ -1,21 +1,15 @@
-# Demo review
+# Review — narrated OpenComputer-style revision
 
-The v0.1.5 walkthrough shows protection, automatic authentication, continued access while switching tabs/apps, and a labeled five-minute idle time jump before relocking. It uses OpenLocker's palette, fingerprint graphic, controls, and lock-page wording with generic sample content. The illustrated Touch ID sheet is simplified. No real browser tabs, documents, or biometric information appear.
+The requested direction carries over OpenComputer's cream/forest palette, Garamond headlines, numbered captions, eased close-ups, and green closing field. OpenLocker keeps its existing sample UI and explicitly labels the walkthrough as illustrated. The wider product recording and a new vertical format were not added; this updates the existing widescreen demo.
 
-Protecting Notes immediately blurs the app and opens Touch ID. After authentication, changing focus leaves Notes clear; the blur returns only after the explicit idle time jump. Window geometry stays fixed throughout. Chrome's protected page disappears while locked and reappears after authentication; changing tabs preserves the domain's unlock.
+Final output: 1920 × 1080, 30 fps, 38.5 seconds, 1,155 frames; H.264 with stereo 48 kHz AAC. Full-file decode passes. HyperFrames lint, runtime, layout, motion, contrast, and audio checks pass with no errors; all 66 text contrast checks pass WCAG AA. Audio analysis has no warnings.
 
-Validation:
+Reviewed beat sheets, six transition strips, 360px phone sheets, camera close-ups, corrected first frames, and frames extracted from the final MP4. A fresh reviewer found no additional P0/P1 findings. The final pass fixed a camera initialization jump and blank transition frames, enlarged Touch ID detail text, and changed the idle caption to a question before the relock appears. The five-minute time jump is labeled; switching apps leaves the window clear. No minimizing or closing is depicted.
 
-- HyperFrames 0.9.19 `check --json`: passed with zero lint, runtime, layout, motion, or contrast errors.
-- Inspected the changed moments at 9.8, 13.3, 27.5, 30.5, and 33.5 seconds, full-film beat sheets, all three scene-cut strips, and 360px phone sheets. No clipping or unintended overlap appeared in these samples. Sheets do not establish smoothness between samples.
-- Opened and played the 35-second composition through to its final frame in the local HyperFrames browser preview.
-- Rendered with `--quality delivery --fps 30 --workers 2 --strict`. FFprobe verified H.264 at 1920 × 1080, 30 fps, 1050 frames, exactly 35 seconds (2,072,027 bytes); the looping 960 × 540 GIF has 420 frames (2,262,577 bytes). Inspected the final idle-relock frame after encoding.
-- Repository checks and source-package verification run before publication; generated caches, renders, and dependencies remain excluded.
+Audio uses eight ElevenLabs Eric phrases, three existing ElevenLabs effects placed on eight visual actions, and the user's night routine track. Word timestamps guided the Touch ID, selection, and idle-lock timing. The final mix measures -16.1 LUFS integrated, -3.1 dBTP true peak, and 5.2 LU loudness range. It is not clipped. Sound was measured, not independently auditioned.
 
-Deliberate warnings:
+Ten check warnings are retained deliberately: two pre-existing long composition files; two identical fixed brand/footer labels coinciding during the Chrome-to-Mac handoff (the incoming opaque background covers the earlier scene); six craft warnings about short-lived or small sample UI text and aggregated popup/lock-page copy. The large editorial captions, narration, and enlarged target controls carry the explanation. These contextual labels do not need to be read in full. The weakest shot remains the whole-window view, where surrounding sample UI is small; a later live workflow could replace the illustration while preserving this framing.
 
-- Silent film: intended for an autoplaying, looping README GIF. There is no audio to assess.
-- Small incidental UI labels and brief secondary helper copy: the large captions carry the instructions; the product controls remain recognizable. The full-resolution MP4 is provided for closer viewing.
-- Two composition files exceed the suggested line count. Each remains one self-contained, named scene; splitting its synchronized UI states would make this small walkthrough harder to edit.
+The persistent preview server was verified, but Chrome blocked its localhost page. Review used HyperFrames snapshots and the final MP4 instead. The project can be edited in the HyperFrames desktop app: https://hyperframes.studio/studio/download?src=cli
 
-The weakest view is the small browser popup on a phone. A dedicated portrait cut with a closer crop would improve it; the landscape version is composed for the GitHub README and desktop video.
+Third-party music is separate from the software MIT license. See assets/audio/PROVENANCE.md.

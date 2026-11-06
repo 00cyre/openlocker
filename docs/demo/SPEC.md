@@ -1,11 +1,13 @@
-# OpenLocker walkthrough
+# OpenLocker — narrated showcase
 
-GOAL: Show that a click protects a domain or app, then Touch ID gets the user back in automatically.
-OUTPUT: HyperFrames, 1920 × 1080, 30 fps; MP4 plus a silent looping README GIF.
-TIME: 35 seconds = 1050 frames. Deliberately silent for the README autoplay context.
-LOOK: Product UI on #f5f5f0, #20251e ink, #334b35 forest, #d8edb4 sage. Inter 700 titles at 72–118px, Inter 400 descriptions at 29px. Browser/window frame 1536 × 660 at (192,290). UI shadows 0 24px 70px at 13% opacity. No grain or vignette.
-OBJECTS: Actual OpenLocker fingerprint and lock-page copy; Chrome toolbar and extension popup; sample personal notes; macOS menu bar and app window; OpenLocker blur shield and gate; a simplified macOS Touch ID prompt. UI is an illustrated walkthrough, not a screen recording.
-MOTION: Cursor power2.inOut over 0.5–0.8s; button press 0.1s down / 0.14s up; window entrance power3.out 0.55s; modal entrance power2.out 0.25s. One cursor action leads each change. No ambient drift.
-SHOTS: Frames 0–89 identity; 90–449 Chrome icon → lock → automatic Touch ID → site restored → tab switch preserves access; 450–959 menu → app selection → immediate blur → automatic Touch ID → window restored → focus loss preserves access → labeled five-minute time jump → relock; 960–1049 project link.
-BANNED: Neon, particles, abstract security diagrams, fake screen recordings, private user data, small centered floating subjects, animated text during reading, shrinking/minimizing the protected Mac window, implying encryption or OS-level access control. Cream/green product surfaces follow the existing brand; no serif or numbered labels.
-QA: 0.3 identity; 5.2 popup; 8.3 Chrome Touch ID; 10.4 restored website; 13.5 tab switch stays unlocked; 17 menu; 18.2 app picker; 20.5 Mac Touch ID; 23.3 restored app; 27.5 clear background app; 30.5 idle relock; 33.5 outro. Inspect all cuts and 360px phone sheet.
+Reference: the finished OpenComputer showcase: cream/forest palette, EB Garamond display type, numbered captions, eased close-ups, and a green closing field. OpenLocker keeps its illustrated walkthrough, labeled on screen; this is not a live recording.
+
+Output: 1920 × 1080, 30 fps, 38.5 seconds (1,155 frames), H.264 MP4 with AAC audio, plus a silent README GIF. No new aspect ratio.
+
+Look: #f4f3e9 paper, #233d2c editorial forest, #526943 labels, #e0e8d9 stage. EB Garamond 132 px intro, 82 px feature headings, 154 px closing name; Inter 31 px explanations and 25–28 px labels. Text starts at x=192. Product stage: (750,145), 978 × 770, 32 px corners. Existing product controls and sample UI are retained. Supporting UI text is context; the caption and demonstrated control carry the read.
+
+Motion: 0.8–0.85 s power3.inOut camera moves; 0.75–0.9 s power4.out title arrivals; 0.23 s accelerating text exits; 0.65 s green field rising from the bottom. Text holds still after arriving. Close-ups move the camera, never minimize the protected window.
+
+Audio: eight separate ElevenLabs Eric clips using eleven_multilingual_v2, with the same user-provided night routine by Inlirium and three existing ElevenLabs effects as the reference. Music ducks around speech. Voice sources are normalized to -16 LUFS / -2 dBTP. Audio is editable in separate voice, music, and effects tracks. Final measured levels belong in REVIEW.md.
+
+Banned: private user data, invented controls, unlabeled live-demo claims, OS-level encryption claims, bouncy or drifting titles, random motion, closing/minimizing the protected app, and claiming that every tab/app switch relocks. Activity resets the five-minute idle timer.
