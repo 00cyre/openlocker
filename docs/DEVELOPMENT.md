@@ -10,7 +10,7 @@ cd openlocker
 npm run build:installer
 ```
 
-Open `dist/OpenLocker-0.1.7-macOS.dmg` and run the installer, or build individual pieces:
+Open `dist/OpenLocker-0.1.8-macOS.dmg` and run the installer, or build individual pieces:
 
 ```sh
 npm run build:mac          # Mac menu-bar app in build/desktop/
@@ -73,9 +73,9 @@ Grant rules explicitly list resource types, including `main_frame`, so they matc
 
 Push a version tag matching `package.json`. The release workflow builds, tests, and publishes these assets only with the pinned persistent signing identity. For local release builds, use `npm run build:release` with the existing signing keychain configured; ad-hoc fallback is rejected:
 
-- `OpenLocker-0.1.7-macOS.dmg`
-- `OpenLocker-0.1.7-macOS.zip`
-- `OpenLocker-0.1.7-source.zip`
+- `OpenLocker-0.1.8-macOS.dmg`
+- `OpenLocker-0.1.8-macOS.zip`
+- `OpenLocker-0.1.8-source.zip`
 - `SHA256SUMS.txt`
 
 The [manual checklist](TESTING.md) covers the hardware and OS integration that automated checks cannot establish. Record unperformed checks in release notes.

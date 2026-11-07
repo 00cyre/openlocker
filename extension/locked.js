@@ -6,7 +6,9 @@ let wheelTimer;
 
 function identity(state = {}) {
   if (!target) return;
-  document.title = `${state.title || `${target.host}${target.pathname === '/' ? '' : target.pathname}`} · Locked`;
+  const title = (state.title || `${target.host}${target.pathname === '/' ? '' : target.pathname}`)
+    .replace(/^https?:\/\//i, '').replace(/^www\./i, '');
+  document.title = `${title} · Locked`;
   // Chrome serves its stored favicon from our own extension origin. Loading a
   // lock page never needs to request the protected website's favicon directly.
   const icon = new URL(chrome.runtime.getURL('_favicon/'));

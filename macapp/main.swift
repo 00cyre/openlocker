@@ -335,7 +335,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, NSWind
         }
     }
     @objc private func welcome() {
-        alert("Your apps. Your fingerprint.", "Click OpenLocker's menu-bar icon → Lock an app, then click any window to protect its whole app. It stays unlocked while you use your Mac and relocks after 5 minutes without keyboard or mouse activity. Each input restarts the timer.\n\nAccessibility and enrolled Touch ID are required. OpenLocker must stay running; enable Start at login if you want it after a restart. This is a convenience lock: macOS may briefly reveal windows before the blur appears, and stopping OpenLocker bypasses it.\n\nVersion 0.1.7 · Local only · No accounts")
+        alert("Your apps. Your fingerprint.", "Click OpenLocker's menu-bar icon → Lock an app, then click any window to protect its whole app. It stays unlocked while you use your Mac and relocks after 5 minutes without keyboard or mouse activity. Each input restarts the timer.\n\nAccessibility and enrolled Touch ID are required. OpenLocker must stay running; enable Start at login if you want it after a restart. This is a convenience lock: macOS may briefly reveal windows before the blur appears, and stopping OpenLocker bypasses it.\n\nVersion 0.1.8 · Local only · No accounts")
     }
     private func alert(_ title: String, _ message: String) {
         let alert = NSAlert(); alert.messageText = title; alert.informativeText = message
