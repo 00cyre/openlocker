@@ -2,13 +2,13 @@
 
 ## Download and open
 
-[Download the macOS installer](https://github.com/00cyre/openlocker/releases/download/v0.1.9/OpenLocker-0.1.9-macOS.dmg), open the disk image, and open **Install OpenLocker.app**. Click **Install OpenLocker**.
+[Download the macOS installer](https://github.com/00cyre/openlocker/releases/download/v0.1.10/OpenLocker-0.1.10-macOS.dmg), open the disk image, and open **Install OpenLocker.app**. Click **Install OpenLocker**.
 
 The universal installer contains Apple Silicon and Intel binaries. You need macOS 13+ and an enrolled Touch ID fingerprint; no compiler, Node, Terminal, or admin password is needed for the downloaded build.
 
 ### macOS blocked the installer
 
-Version 0.1.9 uses a persistent self-signed certificate and is **not notarized by Apple**. After you try to open it, macOS may require you to approve that specific app in **System Settings → Privacy & Security → Open Anyway**. Follow [Apple's instructions](https://support.apple.com/en-us/102445) only if you trust the download. Do not disable Gatekeeper or remove quarantine attributes. The installer does neither.
+Version 0.1.10 uses a persistent self-signed certificate and is **not notarized by Apple**. After you try to open it, macOS may require you to approve that specific app in **System Settings → Privacy & Security → Open Anyway**. Follow [Apple's instructions](https://support.apple.com/en-us/102445) only if you trust the download. Do not disable Gatekeeper or remove quarantine attributes. The installer does neither.
 
 If macOS reports that a download is damaged or contains malware, stop and obtain a fresh release or build from source; do not treat that warning as the ordinary unidentified-developer prompt.
 

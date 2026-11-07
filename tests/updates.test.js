@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { isNewer, releaseVersion } from '../extension/updates.js';
 const release = () => ({ tag_name:'v0.1.2', draft:false, prerelease:false, assets:[{name:'OpenLocker-0.1.2-macOS.dmg',size:1234,browser_download_url:'https://github.com/00cyre/openlocker/releases/download/v0.1.2/OpenLocker-0.1.2-macOS.dmg'}] });
 test('updates compare numeric versions and reject downgrades or malformed versions', () => {
-  assert.equal(isNewer('0.1.10','0.1.9'),true);
+  assert.equal(isNewer('1.0.10','1.0.9'),true);
   for (const v of ['0.1.2','0.1.1','01.2.3','1.2.3-beta','1.2','https://evil.test']) assert.equal(isNewer(v,'0.1.2'),false,v);
 });
 test('only the stable release and its exact official asset are accepted', () => {

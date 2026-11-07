@@ -10,7 +10,7 @@ cd openlocker
 npm run build:installer
 ```
 
-Open `dist/OpenLocker-0.1.9-macOS.dmg` and run the installer, or build individual pieces:
+Open `dist/OpenLocker-0.1.10-macOS.dmg` and run the installer, or build individual pieces:
 
 ```sh
 npm run build:mac          # Mac menu-bar app in build/desktop/
@@ -63,6 +63,8 @@ After a matching successful response, the worker checks that the tab and lock ge
 
 Domain grants carry a `lastActivity` timestamp. The worker schedules the nearest deadline with [`chrome.alarms`](https://developer.chrome.com/docs/extensions/reference/api/alarms), recreating the alarm on worker startup. Chrome may delay alarms; expiry is also enforced on navigation, focus, authorization, and guard checks, and an open protected document covers itself and rechecks at its grant deadline. Timestamp-less legacy grants and backward clock jumps fail closed. `chrome.idle` remains a screen-lock/global-idle fallback. Worker suspension preserves unexpired deadlines; browser restart does not. `activity.js` reports only trusted visible-document input, throttled to once per second, including frames. The worker verifies the live active tab and focused window and only renews existing unexpired grants. Selecting a tab or returning to its Chrome window renews that domain, never an expired grant. Synthetic DOM events, background pages, navigation requests, and activity elsewhere do not keep it unlocked. A lock page only starts authentication on trusted pointer, keyboard, or wheel input inside its document. Focus, visibility, mouse movement, and global idle-to-active events never start authentication. Browser shortcuts, modifier-only keys, Tab/Escape, and settings interactions are ignored; scroll momentum is coalesced into one attempt. An already-authorized domain can resume on focus without another fingerprint.
 
+Focus and visibility checks keep an already-authorized document visible while awaiting the worker, up to its last confirmed deadline. They leave that deadline timer armed, so a slow or overlapping request cannot extend access. An unknown, expired, denied, or failed decision covers the document. Pagehide clears the document's cached authorization before back/forward restoration. This avoids blank flashes on ordinary tab switches without treating focus as authentication.
+
 `LockedTabs` records titles from committed protected web documents before redirecting, tracks title changes, and carries titles through its recovery journal when Chrome replaces tab IDs. Only current protected tabs are retained. Lock pages use [Chrome’s favicon API](https://developer.chrome.com/docs/extensions/how-to/ui/favicons) under the extension origin, never a direct remote icon URL. The `favicon` permission is covered by the existing `tabs` permission; no favicon resource is exposed to websites.
 
 The Mac app samples [`CGEventSource.secondsSinceLastEventType`](https://developer.apple.com/documentation/coregraphics/cgeventsource/secondssincelasteventtype(_:eventtype:)) for `kCGAnyInputEventType` in the combined session state. The foreground app ID attributes newly observed input to that app alone; a 20ms tolerance ignores clock-sampling jitter. Grants carry a monotonic last-use timestamp, and both polling and authorization queries enforce the individual deadline. Activating an app renews only an unexpired grant. A system-idle transition still revokes everything. OpenLocker reads input timing, not input contents. No additional monitoring permission is needed.
@@ -73,9 +75,9 @@ Grant rules explicitly list resource types, including `main_frame`, so they matc
 
 Push a version tag matching `package.json`. The release workflow builds, tests, and publishes these assets only with the pinned persistent signing identity. For local release builds, use `npm run build:release` with the existing signing keychain configured; ad-hoc fallback is rejected:
 
-- `OpenLocker-0.1.9-macOS.dmg`
-- `OpenLocker-0.1.9-macOS.zip`
-- `OpenLocker-0.1.9-source.zip`
+- `OpenLocker-0.1.10-macOS.dmg`
+- `OpenLocker-0.1.10-macOS.zip`
+- `OpenLocker-0.1.10-source.zip`
 - `SHA256SUMS.txt`
 
 The [manual checklist](TESTING.md) covers the hardware and OS integration that automated checks cannot establish. Record unperformed checks in release notes.

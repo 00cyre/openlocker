@@ -186,7 +186,7 @@ test('button-driven update keeps locked tab IDs and protected settings through r
   } });
   try {
     const h = await harness({ native: async (_, m) => ({ id: m.id, success: true, supportsUpdates: true, version: '0.9.0' }) });
-    h.api.runtime.getManifest = () => ({ version: '0.1.9' });
+    h.api.runtime.getManifest = () => ({ version: '0.1.10' });
     const result = await h.send({ type: 'INSTALL_UPDATE' }, h.sender('settings.html'));
     assert.equal(result.ok, true, result.error);
     assert.equal(result.updated, true);
@@ -199,7 +199,7 @@ test('button-driven update keeps locked tab IDs and protected settings through r
     assert.deepEqual((await reloaded.send({ type: 'STATUS' })).domains, ['example.com']);
     assert.equal(reloaded.rules().sessionRules.length, 0, 'Recovery never authenticates a domain');
     const closed = await harness({ native: async (_, m) => ({ id: m.id, success: true, supportsUpdates: true, version: '0.9.0' }) });
-    closed.api.runtime.getManifest = () => ({ version: '0.1.9' });
+    closed.api.runtime.getManifest = () => ({ version: '0.1.10' });
     closed.api.runtime.onMessage.listeners[0]({ type: 'INSTALL_UPDATE' }, closed.sender('popup.html'), () => { throw Error('Popup closed'); });
     for (let attempt = 0; attempt < 100 && !closed.reloads(); attempt++) await new Promise(resolve => setImmediate(resolve));
     assert.equal(closed.reloads(), 1, 'A disconnected popup must not strand parked tabs');

@@ -3,12 +3,12 @@ import Foundation
 @main
 struct UpdaterTests {
     static func main() throws {
-        precondition(ReleaseVersion("0.1.10")! > ReleaseVersion("0.1.9")!)
+        precondition(ReleaseVersion("1.0.10")! > ReleaseVersion("1.0.9")!)
         for bad in ["1.2", "01.2.3", "1.2.3-beta", "../../1", "999999999.1.1"] { precondition(ReleaseVersion(bad) == nil) }
-        let name = "OpenLocker-0.1.9-macOS.dmg"
-        let good: [String: Any] = ["tag_name": "v0.1.9", "draft": false, "prerelease": false, "assets": [["name": name, "size": 1234, "browser_download_url": "https://github.com/00cyre/openlocker/releases/download/v0.1.9/\(name)"]]]
+        let name = "OpenLocker-0.1.10-macOS.dmg"
+        let good: [String: Any] = ["tag_name": "v0.1.10", "draft": false, "prerelease": false, "assets": [["name": name, "size": 1234, "browser_download_url": "https://github.com/00cyre/openlocker/releases/download/v0.1.10/\(name)"]]]
         let release = try OpenLockerRelease.parse(JSONSerialization.data(withJSONObject: good))
-        precondition(release.version.text == "0.1.9")
+        precondition(release.version.text == "0.1.10")
         for bad: [String: Any] in [
             ["draft": true], ["prerelease": true], ["tag_name": "v../wrong"],
             ["assets": [["name": name, "size": 1234, "browser_download_url": "https://evil.test/update.dmg"]]],

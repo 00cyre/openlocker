@@ -9,6 +9,7 @@ Load the unpacked extension and install the helper on a Mac with enrolled Touch 
 - [ ] Open a second tab to the domain: it starts locked, with no protected page contents visible.
 - [ ] Click **Unlock with Touch ID**. The macOS prompt names the domain; a valid fingerprint unlocks that domain across tabs.
 - [ ] Cancel the prompt: the page remains locked. No password/Apple Watch fallback unlocks it.
+- [ ] Switch repeatedly between ordinary websites and unlocked protected sites. Already-authorized documents must stay visible, without a blank flash, during focus/visibility checks. Return after expiry: the protected page must be covered before waiting for the worker. A pending focus check must not postpone expiry.
 - [ ] Switch tabs, Chrome windows, and apps; navigate away and back. Previously unlocked domains remain available without another prompt. Use another site or Mac app for five minutes: the original protected domain relocks. Keep interacting with a second protected domain and verify only that domain stays unlocked. Return within five minutes to renew that site; return after expiry and verify it stays locked until page input starts Touch ID. Stop all input for five minutes: every protected page relocks. Lock macOS separately: it revokes access immediately.
 - [ ] Click **Lock all now** and verify every protected page is replaced, including background tabs.
 - [ ] While an authentication prompt is pending, change tabs or request a lock. A late successful response must not unlock.
