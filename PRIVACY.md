@@ -2,7 +2,9 @@
 
 OpenLocker has no accounts or analytics and does not transmit browsing history, page content, protected app/domain lists, or fingerprints. Protection and recovery state are stored locally as described below. Update checks contact GitHub for public release metadata; clicking Update downloads the signed release from GitHub. These requests expose ordinary network information such as your IP address to GitHub. No protected site or app information is included.
 
-The extension stores a protected-domain list and a recovery copy in `chrome.storage.local`. A local locked-tab journal stores original URLs (including paths, queries, and fragments), tab/window IDs, positions, pinned status, and selected-tab status so reloads can restore them. Entries are removed after unlocking, navigating away, removing protection, or deliberately closing the tab. This journal stays inside the same Chrome profile and is never sent to the helper or GitHub. Temporary grants identify a domain in `chrome.storage.session` and Chrome session rules. Rules are local to the Chrome profile. The original destination is carried in the local lock-page URL and can remain in browser history. Uninstalling the extension removes its Chrome storage and rules; browser history is controlled separately by Chrome.
+The extension stores a protected-domain list and a recovery copy in `chrome.storage.local`. A local locked-tab journal stores original URLs (including paths, queries, and fragments), tab/window IDs, positions, saved page titles, pinned status, and selected-tab status so reloads can restore them. Entries are removed after unlocking, navigating away, removing protection, or deliberately closing the tab. This journal stays inside the same Chrome profile and is never sent to the helper or GitHub. Temporary grants identify a domain in `chrome.storage.session` and Chrome session rules. Rules are local to the Chrome profile. The original destination is carried in the local lock-page URL and can remain in browser history. Uninstalling the extension removes its Chrome storage and rules; browser history is controlled separately by Chrome.
+
+A separate local title record follows currently open protected tabs, including while unlocked, and is removed on closing the tab, navigating away from protected sites, or removing protection. Locked tab titles and site icons remain visible in the tab strip by design. Chrome’s favicon API supplies the site icon locally; OpenLocker does not request remote icon URLs while locked. Lock-page input is used only to start Touch ID; key contents are not recorded or transmitted.
 
 The native helper receives an operation, a fresh request ID, and (for authentication) the protected domain. An explicit update operation downloads and installs the verified Chrome components. macOS displays the system Touch ID prompt and returns an authentication result. Neither OpenLocker component receives fingerprint images or biometric templates. Any enrolled fingerprint for the active macOS user can authenticate.
 
@@ -11,7 +13,8 @@ Permissions:
 | Permission | Purpose |
 | --- | --- |
 | `storage` | Remember protected domains, temporary domain grants, and cached update metadata locally. |
-| `tabs` | Identify the current site and replace already-open protected pages. |
+| `tabs` | Identify the current site, retain its title, and replace already-open protected pages. |
+| `favicon` | Show Chrome’s stored site icon on the lock page. Covered by the existing `tabs` permission. |
 | `nativeMessaging` | Ask the local Swift helper for Touch ID authentication or an explicit verified update. |
 | `declarativeNetRequestWithHostAccess` | Install persistent domain redirects/blocks and temporary domain allowances across tabs. |
 | HTTP/HTTPS host access | Apply blocking and a document-start guard across the sites the user chooses. |

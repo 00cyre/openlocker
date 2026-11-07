@@ -1,12 +1,13 @@
 {
   "manifest_version": 3,
   "name": "OpenLocker",
-  "version": "0.1.6",
+  "version": "0.1.7",
   "description": "A little privacy, at your fingertips. Lock websites with your Mac's Touch ID.",
   "minimum_chrome_version": "120",
   "permissions": [
     "storage",
     "tabs",
+    "favicon",
     "nativeMessaging",
     "declarativeNetRequestWithHostAccess",
     "idle",

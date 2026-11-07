@@ -33,7 +33,7 @@ struct InstallerEngine {
         let manifestData = try Data(contentsOf: extensionSource.appendingPathComponent("manifest.json"))
         guard let manifest = try JSONSerialization.jsonObject(with: manifestData) as? [String: Any],
               let key = manifest["key"] as? String, let publicKey = Data(base64Encoded: key),
-              let version = manifest["version"] as? String, version == "0.1.6" else {
+              let version = manifest["version"] as? String, version == "0.1.7" else {
             throw InstallFailure(message: "The bundled extension is incomplete. Download OpenLocker again.")
         }
         let extensionID = SHA256.hash(data: publicKey).prefix(16).flatMap { byte in

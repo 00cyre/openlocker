@@ -10,7 +10,7 @@ cd openlocker
 npm run build:installer
 ```
 
-Open `dist/OpenLocker-0.1.6-macOS.dmg` and run the installer, or build individual pieces:
+Open `dist/OpenLocker-0.1.7-macOS.dmg` and run the installer, or build individual pieces:
 
 ```sh
 npm run build:mac          # Mac menu-bar app in build/desktop/
@@ -61,7 +61,9 @@ Persistent `declarativeNetRequest` rules redirect protected top-level network re
 
 After a matching successful response, the worker checks that the tab and lock generation have not changed. A session allowance covers the authenticated domain across tabs and windows in the Chrome profile. Switching and navigation preserve it. Five minutes without system input, restarting Chrome, locking the screen, or an explicit lock revoke access. A document-start guard and navigation checks add coverage for cached pages.
 
-The extension uses [`chrome.idle`](https://developer.chrome.com/docs/extensions/reference/api/idle) with a 300-second detection interval; the idle event wakes its worker. Startup, authorization, and guard checks also query the current idle state. Worker suspension preserves active domain grants; browser restart does not. No page can extend a session by sending synthetic activity messages. A lock page created while idle waits for the system to become active before automatically prompting.
+The extension uses [`chrome.idle`](https://developer.chrome.com/docs/extensions/reference/api/idle) with a 300-second detection interval; the idle event wakes its worker. Startup, authorization, and guard checks also query the current idle state. Worker suspension preserves active domain grants; browser restart does not. No page can extend a session by sending synthetic activity messages. A lock page only starts authentication on trusted pointer, keyboard, or wheel input inside its document. Focus, visibility, mouse movement, and global idle-to-active events never start authentication. Browser shortcuts, modifier-only keys, Tab/Escape, and settings interactions are ignored; scroll momentum is coalesced into one attempt. An already-authorized domain can resume on focus without another fingerprint.
+
+`LockedTabs` records titles from committed protected web documents before redirecting, tracks title changes, and carries titles through its recovery journal when Chrome replaces tab IDs. Only current protected tabs are retained. Lock pages use [Chrome’s favicon API](https://developer.chrome.com/docs/extensions/how-to/ui/favicons) under the extension origin, never a direct remote icon URL. The `favicon` permission is covered by the existing `tabs` permission; no favicon resource is exposed to websites.
 
 The Mac app samples [`CGEventSource.secondsSinceLastEventType`](https://developer.apple.com/documentation/coregraphics/cgeventsource/secondssincelasteventtype(_:eventtype:)) for `kCGAnyInputEventType` in the combined session state. The existing window-refresh timer also checks the idle threshold. `LockPolicy.updateActivity` invalidates grants and pending authentication once per idle transition. Keyboard, mouse, or tablet input resets the OS clock; OpenLocker reads only elapsed seconds, not the input. No additional monitoring permission is needed.
 
@@ -71,9 +73,9 @@ Grant rules explicitly list resource types, including `main_frame`, so they matc
 
 Push a version tag matching `package.json`. The release workflow builds, tests, and publishes these assets only with the pinned persistent signing identity. For local release builds, use `npm run build:release` with the existing signing keychain configured; ad-hoc fallback is rejected:
 
-- `OpenLocker-0.1.6-macOS.dmg`
-- `OpenLocker-0.1.6-macOS.zip`
-- `OpenLocker-0.1.6-source.zip`
+- `OpenLocker-0.1.7-macOS.dmg`
+- `OpenLocker-0.1.7-macOS.zip`
+- `OpenLocker-0.1.7-source.zip`
 - `SHA256SUMS.txt`
 
 The [manual checklist](TESTING.md) covers the hardware and OS integration that automated checks cannot establish. Record unperformed checks in release notes.

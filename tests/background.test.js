@@ -175,7 +175,7 @@ test('button-driven update keeps locked tab IDs and protected settings through r
   } });
   try {
     const h = await harness({ native: async (_, m) => ({ id: m.id, success: true, supportsUpdates: true, version: '0.9.0' }) });
-    h.api.runtime.getManifest = () => ({ version: '0.1.6' });
+    h.api.runtime.getManifest = () => ({ version: '0.1.7' });
     const result = await h.send({ type: 'INSTALL_UPDATE' }, h.sender('settings.html'));
     assert.equal(result.ok, true, result.error);
     assert.equal(result.updated, true);
@@ -188,7 +188,7 @@ test('button-driven update keeps locked tab IDs and protected settings through r
     assert.deepEqual((await reloaded.send({ type: 'STATUS' })).domains, ['example.com']);
     assert.equal(reloaded.rules().sessionRules.length, 0, 'Recovery never authenticates a domain');
     const closed = await harness({ native: async (_, m) => ({ id: m.id, success: true, supportsUpdates: true, version: '0.9.0' }) });
-    closed.api.runtime.getManifest = () => ({ version: '0.1.6' });
+    closed.api.runtime.getManifest = () => ({ version: '0.1.7' });
     closed.api.runtime.onMessage.listeners[0]({ type: 'INSTALL_UPDATE' }, closed.sender('popup.html'), () => { throw Error('Popup closed'); });
     for (let attempt = 0; attempt < 100 && !closed.reloads(); attempt++) await new Promise(resolve => setImmediate(resolve));
     assert.equal(closed.reloads(), 1, 'A disconnected popup must not strand parked tabs');
@@ -462,4 +462,50 @@ test('navigating away and back during Touch ID cancels the old unlock', async ()
   resolve();
   assert.equal((await unlocking).ok, false);
   assert.equal(h.rules().sessionRules.length, 0);
+});
+
+test('locking retains each original page title through reload and restored tab IDs', async () => {
+  const url = 'https://example.com/private';
+  const h = await harness({tabs:[{id:1,windowId:1,active:true,url,title:'Budget · Project A',favIconUrl:'https://example.com/favicon.ico'}]});
+  assert.equal((await h.send({type:'STATUS'})).title,'Budget · Project A');
+  h.tabMap.get(1).title = 'Site locked · OpenLocker';
+  h.api.tabs.onUpdated.fire(1,{title:'Site locked · OpenLocker'},copy(h.tabMap.get(1)));
+  assert.equal((await h.send({type:'STATUS'})).title,'Budget · Project A');
+  const reloaded = await harness({localData:await h.api.storage.local.get({}),tabs:[]});
+  const tabId=[...reloaded.tabMap.keys()][0];
+  assert.equal((await reloaded.send({type:'STATUS'},reloaded.sender('locked.html',tabId))).title,'Budget · Project A');
+  assert.equal(reloaded.rules().sessionRules.length,0);
+});
+test('titles follow live page changes and never carry across a different destination', async () => {
+  const url='https://example.com/private';
+  const h=await harness({grants:[{domain:'example.com'}],tabs:[{id:1,windowId:1,active:true,url,title:'Old title'}]});
+  h.tabMap.get(1).title='New title';
+  h.api.tabs.onUpdated.fire(1,{title:'New title'},copy(h.tabMap.get(1)));
+  await h.send({type:'LOCK_ALL'},h.sender('settings.html'));
+  assert.equal((await h.send({type:'STATUS'})).title,'New title');
+  h.tabMap.get(1).url=`${base}locked.html#https://example.com/different`;
+  assert.equal((await h.send({type:'STATUS'})).title,null);
+});
+test('duplicate destinations keep distinct titles when Chrome restores their tab IDs', async () => {
+  const url='https://example.com/private';
+  const h=await harness({tabs:[{id:1,windowId:1,index:0,url,title:'First draft'},{id:2,windowId:1,index:1,url,title:'Second draft'}]});
+  const saved=await h.api.storage.local.get({});
+  const restored=await harness({localData:saved,tabs:[{id:10,windowId:1,index:0,url:`${base}locked.html#${url}`},{id:11,windowId:1,index:1,url:`${base}locked.html#${url}`} ]});
+  assert.equal((await restored.send({type:'STATUS'},restored.sender('locked.html',10))).title,'First draft');
+  assert.equal((await restored.send({type:'STATUS'},restored.sender('locked.html',11))).title,'Second draft');
+});
+test('closing a tab drops its saved title and malformed optional metadata does not disable locking', async () => {
+  const h=await harness({tabs:[{id:1,windowId:1,url:'https://example.com/private',title:'Private draft'}]});
+  h.tabMap.delete(1); h.api.tabs.onRemoved.fire(1,{windowId:1,isWindowClosing:false});
+  await h.send({type:'STATUS'},h.sender('settings.html'));
+  assert.deepEqual((await h.api.storage.local.get({})).tabTitles,[]);
+  for(const tabTitles of [null,{},[null,{id:1,url:'https://example.com/private',title:{}}]]) {
+    const malformed=await harness({localData:{domains:['example.com'],tabTitles}});
+    assert.equal((await malformed.send({type:'STATUS'})).ok,true);
+    assert.equal(malformed.rules().dynamic.length,2);
+  }
+});
+test('a pending navigation does not save the old document title for the new URL', async () => {
+  const h=await harness({tabs:[{id:1,windowId:1,url:'https://unrelated.test/',pendingUrl:'https://example.com/private',title:'Unrelated page',status:'loading'}]});
+  assert.equal((await h.send({type:'STATUS'})).title,null);
 });

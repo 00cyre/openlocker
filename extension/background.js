@@ -36,11 +36,11 @@ async function setGrants(grants) {
 async function shieldTabs(domains, grants = []) {
   const tabs = await chrome.tabs.query({});
   // Save destinations before replacing pages, including abrupt manual reloads.
-  await lockedTabs.remember(domains, tabs.map(tab => {
+  const locking = new Set(tabs.filter(tab => {
     const url = tab.pendingUrl || tab.url;
-    return protectedDomain(url, domains) && !allows(url, grants)
-      ? { ...tab, pendingUrl: undefined, url: lockedURL(base, url) } : tab;
-  }));
+    return protectedDomain(url, domains) && !allows(url, grants);
+  }).map(tab => tab.id));
+  await lockedTabs.remember(domains, tabs, locking);
   await Promise.all(tabs.map(async tab => {
     const url = tab.pendingUrl || tab.url;
     const domain = protectedDomain(url, domains);
@@ -109,7 +109,8 @@ async function snapshot(tabId) {
   if (Number.isInteger(tabId)) { try { tab = await chrome.tabs.get(tabId); } catch {} }
   const url = originalURL(tab?.pendingUrl || tab?.url, base);
   const domain = protectedDomain(url, domains);
-  return { domains, url, domain, unlocked: allows(url, grants), updating: installingUpdate, extensionId: chrome.runtime.id };
+  const title = await lockedTabs.title(tabId, url);
+  return { domains, url, domain, title, unlocked: allows(url, grants), updating: installingUpdate, extensionId: chrome.runtime.id };
 }
 
 async function handle(message, sender) {
@@ -254,7 +255,9 @@ for (const changed of [chrome.tabs.onMoved, chrome.tabs.onAttached, chrome.tabs.
 }
 chrome.tabs.onUpdated.addListener((tabId, change) => {
   if (!change.url) {
-    if ('pinned' in change) event(async () => lockedTabs.remember((await local()).domains));
+    if ('pinned' in change || 'title' in change || change.status === 'complete') {
+      event(async () => lockedTabs.remember((await local()).domains));
+    }
     return;
   }
   if (pendingUnlock?.tabId === tabId && change.url !== pendingUnlock.url) generation++;

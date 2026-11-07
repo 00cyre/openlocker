@@ -9,7 +9,7 @@ xcrun lipo "build/installer/Install OpenLocker.app/Contents/MacOS/InstallOpenLoc
 xcrun lipo "build/installer/Install OpenLocker.app/Contents/Resources/Payload/OpenLocker.app/Contents/MacOS/OpenLocker" -verify_arch arm64 x86_64
 xcrun lipo "build/installer/Install OpenLocker.app/Contents/Resources/Payload/Desktop/OpenLocker.app/Contents/MacOS/OpenLockerMac" -verify_arch arm64 x86_64
 codesign --verify --deep --strict "build/installer/Install OpenLocker.app"
-hdiutil verify dist/OpenLocker-0.1.6-macOS.dmg
+hdiutil verify dist/OpenLocker-0.1.7-macOS.dmg
 
 xcrun swiftc -swift-version 5 -framework CryptoKit -framework Security native/Config.swift shared/CodeIdentity.swift installer/InstallerEngine.swift tests/accessibility_upgrade.test.swift -o build/accessibility-upgrade-tests
 build/accessibility-upgrade-tests "$OPENLOCKER_ROOT"

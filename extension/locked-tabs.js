@@ -1,4 +1,6 @@
 import { lockedURL, originalURL, protectedDomain, webURL } from './core.js';
+const titleText = value => typeof value === 'string' ? value.trim().slice(0, 2048) : '';
+const titleRows = value => Array.isArray(value) ? value.filter(row => row && Number.isInteger(row.id) && webURL(row.url) && titleText(row.title)) : [];
 
 // Chrome closes extension-origin tabs during both manual and runtime.reload().
 // Keep a profile-local journal throughout normal use, not just during updates.
@@ -11,22 +13,48 @@ export class LockedTabs {
     if (!Array.isArray(lockedTabs)) throw Error('The saved locked tabs need attention. Reload was stopped.');
     return lockedTabs.filter(row => Number.isInteger(row?.id) && Number.isInteger(row.windowId) && webURL(row.url));
   }
-  async remember(domains, tabs = null) {
+  async title(tabId, url) {
+    const { tabTitles = [] } = await this.api.storage.local.get({ tabTitles: [] });
+    return titleText(titleRows(tabTitles).find(row => row.id === tabId && row.url === url)?.title) || null;
+  }
+  async remember(domains, tabs = null, locking = new Set()) {
     if (this.parking) return;
     tabs ??= await this.api.tabs.query({});
-    const rows = tabs.filter(tab => this.isLockPage(tab.pendingUrl || tab.url)).map(tab => ({
-      id: tab.id, url: originalURL(tab.pendingUrl || tab.url, this.base), windowId: tab.windowId,
-      index: tab.index ?? 0, pinned: tab.pinned === true, active: tab.active === true
-    })).filter(row => protectedDomain(row.url, domains));
-    for (const row of this.pending) if (!rows.some(current => current.id === row.id)) rows.push(row);
     const before = await this.entries();
-    if (JSON.stringify(before) !== JSON.stringify(rows)) await this.api.storage.local.set({ lockedTabs: rows });
+    const { tabTitles = [] } = await this.api.storage.local.get({ tabTitles: [] });
+    const titles = [];
+    const rows = [];
+    for (const tab of tabs) {
+      const destination = tab.pendingUrl || tab.url;
+      const url = originalURL(destination, this.base);
+      if (!protectedDomain(url, domains)) continue;
+      // Only the original, committed web document may supply a new title.
+      // Never replace it with the lock page's label or a pending URL's old title.
+      const liveTitle = webURL(tab.url) && tab.url === url && tab.status !== 'loading' &&
+        typeof tab.title === 'string' ? tab.title.trim().slice(0, 2048) : '';
+      const saved = [...titleRows(tabTitles), ...before].find(row => row.id === tab.id && row.url === url);
+      const title = liveTitle || titleText(saved?.title) || null;
+      if (title) titles.push({ id: tab.id, url, title });
+      if (this.isLockPage(destination) || locking.has(tab.id)) rows.push({
+        id: tab.id, url, windowId: tab.windowId, index: tab.index ?? 0,
+        pinned: tab.pinned === true, active: tab.active === true, ...(title ? { title } : {})
+      });
+    }
+    for (const row of this.pending) if (!rows.some(current => current.id === row.id)) rows.push(row);
+    // Retain only currently open protected tabs, not a browsing-history cache.
+    if (JSON.stringify(before) !== JSON.stringify(rows) || JSON.stringify(tabTitles) !== JSON.stringify(titles)) {
+      await this.api.storage.local.set({ lockedTabs: rows, tabTitles: titles });
+    }
   }
   async forget(tabId, info = {}) {
     if (this.parking) return;
     const keep = row => row.id !== tabId && !(info.isWindowClosing && row.windowId === info.windowId);
     this.pending = this.pending.filter(keep);
-    await this.api.storage.local.set({ lockedTabs: (await this.entries()).filter(keep) });
+    const { tabTitles = [] } = await this.api.storage.local.get({ tabTitles: [] });
+    const closed = new Set((await this.entries()).filter(row => !keep(row)).map(row => row.id));
+    closed.add(tabId);
+    await this.api.storage.local.set({ lockedTabs: (await this.entries()).filter(keep),
+      tabTitles: titleRows(tabTitles).filter(row => !closed.has(row.id)) });
   }
   async restore(domains) {
     const saved = (await this.entries()).filter(row => protectedDomain(row.url, domains));
@@ -48,7 +76,12 @@ export class LockedTabs {
         // duplicate URLs stay duplicated, without creating extra restored tabs.
         const restored = live.find(tab => !used.has(tab.id) && (tab.url === url || tab.pendingUrl === url) &&
           (!windows.has(row.windowId) || tab.windowId === windows.get(row.windowId)));
-        if (restored) { used.add(restored.id); continue; }
+        if (restored) {
+          used.add(restored.id);
+          row.id = restored.id; row.windowId = restored.windowId; delete row.parked;
+          await this.api.storage.local.set({ lockedTabs: saved });
+          continue;
+        }
         let tab;
         if (windows.has(row.windowId)) {
           tab = await this.api.tabs.create({ url, windowId: windows.get(row.windowId),

@@ -63,13 +63,14 @@ Current automated additions: universal Apple Silicon/Intel builds, code-signatur
 ## Successful navigation after Touch ID
 
 - Protect a local site on `127.0.0.1`, open it, and complete Touch ID. The site must load without a second prompt. Repeat for an HTTPS domain.
-- Confirm scripts, fetch requests, and WebSockets still work in the unlocked tab. The same protected domain in another tab must remain locked.
-- Switch tabs or use Lock all, then return. Touch ID should be required again.
+- Confirm scripts, fetch requests, and WebSockets still work in the unlocked tab. The same protected domain in another tab should reuse the current five-minute idle session.
+- Switch tabs: the active idle session stays valid. Use Lock all, then interact with the lock page: Touch ID should be required again.
 
 ## 0.1.2 updates and automatic prompts
 
 - From the Mac menu, install Chrome setup, confirm the native host reports ready, and complete Load unpacked from the managed folder. Preserve the extension ID and protected domains during migration from a source checkout.
-- Open a locked site: one Touch ID prompt should appear automatically; successful authentication navigates to the site. Cancel and verify it stays locked without repeated prompts. Switch tabs or navigate during authentication and verify the old response is rejected.
+- Open or switch to a locked site: no Touch ID prompt. Click, type, or scroll inside the page: one prompt appears and successful authentication navigates to the site. Browser shortcuts, Tab, Escape, pointer movement, and Manage protected sites stay quiet. Cancel during a trackpad scroll and verify momentum does not repeat the prompt. Switch tabs or navigate during authentication and verify the old response is rejected.
+- Unlock a site, then relock it: its original title and cached site icon remain in the tab strip. Repeat after extension update/manual reload with duplicate destinations and different titles. Previously locked pages without saved titles use domain/path; a fresh site without a cached favicon may show Chrome’s default icon.
 - Open a locked app: one Touch ID prompt appears with blur/input protection behind it. Cancel and verify a manual retry is available.
 - Exercise an app update with and without protected apps; check the fingerprint confirmation when protected, relaunch, and saved settings. Exercise an extension-only update while the Mac app is running; it must not replace that app. Confirm offline/download/signature failures leave the existing installation and lock rules intact.
 - Automated checks cover the focus-return regression, no-loop web prompts, metadata validation, unsigned/tampered DMG rejection, real signed staging, helper protocol, Chrome-only installs, bundled app setup, and signing identity continuity.
