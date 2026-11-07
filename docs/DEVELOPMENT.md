@@ -10,7 +10,7 @@ cd openlocker
 npm run build:installer
 ```
 
-Open `dist/OpenLocker-0.1.12-macOS.dmg` and run the installer, or build individual pieces:
+Open `dist/OpenLocker-0.1.13-macOS.dmg` and run the installer, or build individual pieces:
 
 ```sh
 npm run build:mac          # Mac menu-bar app in build/desktop/
@@ -75,9 +75,9 @@ Grant rules explicitly list resource types, including `main_frame`, so they matc
 
 Push a version tag matching `package.json`. The release workflow builds, tests, and publishes these assets only with the pinned persistent signing identity. For local release builds, use `npm run build:release` with the existing signing keychain configured; ad-hoc fallback is rejected:
 
-- `OpenLocker-0.1.12-macOS.dmg`
-- `OpenLocker-0.1.12-macOS.zip`
-- `OpenLocker-0.1.12-source.zip`
+- `OpenLocker-0.1.13-macOS.dmg`
+- `OpenLocker-0.1.13-macOS.zip`
+- `OpenLocker-0.1.13-source.zip`
 - `SHA256SUMS.txt`
 
 The [manual checklist](TESTING.md) covers the hardware and OS integration that automated checks cannot establish. Record unperformed checks in release notes.
@@ -91,6 +91,10 @@ Official references: [Chrome native messaging](https://developer.chrome.com/docs
 ## Updates and Chrome setup
 
 `ReleaseUpdater` validates stable GitHub release metadata, downloads the fixed repository's DMG, checks its pinned certificate before mounting read-only, and verifies the copied installer and version before execution. The installer exposes Chrome-only and parent-waiting app update modes backed by the same rollback transaction and an exclusive install lock. The Mac app bundles the extension and helper for offline Chrome setup. `installation.json` marks the managed folder; source checkouts must migrate once and are never overwritten. Chrome storage remains keyed to the fixed extension ID.
+
+`AutomaticUpdatePolicy` gates opted-in background installation on a newer release, five minutes of finite system inactivity, and no active authentication, setup, picker, menu, or modal dialog. Eligibility is checked before downloading and again immediately before the handoff. A single in-flight update guard prevents duplicate downloads/installs; failures back off for one hour. The `automaticallyInstallUpdates` UserDefaults key is false when absent. The menu toggle persists it. Launch and six-hour checks discover releases; the minute timer retries eligible installation. This system-wide idle check only schedules updates: protected apps and domains retain their independent inactivity timers.
+
+Automatic updates use the same pinned-signature verification and recovery transaction as manual updates. `--automatic-update` suppresses the post-relaunch Chrome modal while preserving its menu/extension reload reminder. A failed automatic installation restores the old app before showing any error; `--automatic-update-failed` applies the retry delay in that restored process. No biometric grants cross an app restart. Manual updates still require Touch ID when apps are protected.
 
 The extension's pending authentication tracks its initiating tab. Returning from Touch ID to the same tab does not advance its invalidation generation; tab switches or navigation during pending authentication still do. Completed domain grants survive subsequent tab/window switches and navigation. Website prompting requires deliberate input in a visible, focused lock page and never loops on system-dialog focus changes.
 

@@ -37,7 +37,7 @@ async function harness({ domains = ['example.com'], grants = [], tabs, native, n
   let nextTab = Math.max(0, ...tabMap.keys()) + 1;
   let nextWindow = Math.max(0, ...[...tabMap.values()].map(t => t.windowId)) + 1;
   const api = {
-    runtime: { id: ID, getManifest: () => ({version:'0.1.12'}), reload() { reloads++; }, getURL: path => base + path, onMessage: event(), onStartup: event(), onInstalled: event(), openOptionsPage: async () => {}, sendNativeMessage: native || (async (_, message) => ({ id: message.id, success: true, available: true })) },
+    runtime: { id: ID, getManifest: () => ({version:'0.1.13'}), reload() { reloads++; }, getURL: path => base + path, onMessage: event(), onStartup: event(), onInstalled: event(), openOptionsPage: async () => {}, sendNativeMessage: native || (async (_, message) => ({ id: message.id, success: true, available: true })) },
     action: { text: '', title: '', async setBadgeText({text}) { this.text=text; }, async setBadgeBackgroundColor() {}, async setTitle({title}) { this.title=title; } },
     storage: { local: storage(localData ?? { domains }), session: storage({ grants: grants.map(g => ({ lastActivity: time, ...g })), recoveryReady }) },
     declarativeNetRequest: {
@@ -187,7 +187,7 @@ test('button-driven update keeps locked tab IDs and protected settings through r
   } });
   try {
     const h = await harness({ native: async (_, m) => ({ id: m.id, success: true, supportsUpdates: true, version: '0.9.0' }) });
-    h.api.runtime.getManifest = () => ({ version: '0.1.12' });
+    h.api.runtime.getManifest = () => ({ version: '0.1.13' });
     const result = await h.send({ type: 'INSTALL_UPDATE' }, h.sender('settings.html'));
     assert.equal(result.ok, true, result.error);
     assert.equal(result.updated, true);
@@ -200,7 +200,7 @@ test('button-driven update keeps locked tab IDs and protected settings through r
     assert.deepEqual((await reloaded.send({ type: 'STATUS' })).domains, ['example.com']);
     assert.equal(reloaded.rules().sessionRules.length, 0, 'Recovery never authenticates a domain');
     const closed = await harness({ native: async (_, m) => ({ id: m.id, success: true, supportsUpdates: true, version: '0.9.0' }) });
-    closed.api.runtime.getManifest = () => ({ version: '0.1.12' });
+    closed.api.runtime.getManifest = () => ({ version: '0.1.13' });
     closed.api.runtime.onMessage.listeners[0]({ type: 'INSTALL_UPDATE' }, closed.sender('popup.html'), () => { throw Error('Popup closed'); });
     for (let attempt = 0; attempt < 100 && !closed.reloads(); attempt++) await new Promise(resolve => setImmediate(resolve));
     assert.equal(closed.reloads(), 1, 'A disconnected popup must not strand parked tabs');
@@ -608,7 +608,7 @@ test('a newer locally installed extension reports reload needed without a GitHub
 });
 
 test('equal, older, malformed and unmanaged installation versions do not request reload', async () => {
-  for (const [version,managed] of [['0.1.12',true],['0.1.1',true],['invalid',true],['0.2.0',false]]) {
+  for (const [version,managed] of [['0.1.13',true],['0.1.1',true],['invalid',true],['0.2.0',false]]) {
     const h = await harness({native:async (_,m)=>({id:m.id, extensionManaged:managed,runningExtensionManaged:true,installedExtensionVersion:version})});
     h.api.action.text='↻';
     assert.equal((await h.send({type:'LOCAL_UPDATE_STATUS'},h.sender('settings.html'))).reloadRequired,false);

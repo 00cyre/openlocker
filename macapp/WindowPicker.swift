@@ -16,6 +16,7 @@ final class WindowPicker {
     private var panels: [NSPanel] = []
     private var windows: [[String: Any]] = []
     private var finished: ((pid_t?) -> Void)?
+    var isPicking: Bool { !panels.isEmpty }
     func begin(completion: @escaping (pid_t?) -> Void) {
         finish(nil)
         windows = CGWindowListCopyWindowInfo([.optionOnScreenOnly, .excludeDesktopElements], kCGNullWindowID) as? [[String: Any]] ?? []

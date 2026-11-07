@@ -3,11 +3,11 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/00cyre/openlocker/releases/download/v0.1.12/OpenLocker-0.1.12-macOS.dmg"><img src="docs/assets/download.svg" alt="Download OpenLocker for macOS — Apple Silicon and Intel" width="310"></a>
+  <a href="https://github.com/00cyre/openlocker/releases/download/v0.1.13/OpenLocker-0.1.13-macOS.dmg"><img src="docs/assets/download.svg" alt="Download OpenLocker for macOS — Apple Silicon and Intel" width="310"></a>
 </p>
 
 <p align="center">
-  <a href="https://github.com/00cyre/openlocker/releases/tag/v0.1.12">Release notes</a> ·
+  <a href="https://github.com/00cyre/openlocker/releases/tag/v0.1.13">Release notes</a> ·
   <a href="#see-it-in-action">Demo</a> ·
   <a href="#get-started">Get started</a> ·
   <a href="docs/INSTALL.md">Installation help</a> ·
@@ -46,7 +46,7 @@
 **macOS 13+ · enrolled Touch ID · Apple Silicon or Intel**<br>
 Chrome 120+ is needed only for website locking.
 
-1. **[Download OpenLocker](https://github.com/00cyre/openlocker/releases/download/v0.1.12/OpenLocker-0.1.12-macOS.dmg)**, open the disk, and launch **Install OpenLocker**.
+1. **[Download OpenLocker](https://github.com/00cyre/openlocker/releases/download/v0.1.13/OpenLocker-0.1.13-macOS.dmg)**, open the disk, and launch **Install OpenLocker**.
 2. Click **Install OpenLocker**. The Mac app, Chrome extension, and Touch ID helper are installed for your user. No Terminal, Xcode, or admin password.
 3. Choose your setup:
 
@@ -55,9 +55,9 @@ Chrome 120+ is needed only for website locking.
 
 > **About the one-click installer:** the button above downloads a ready-to-run installer. It installs all local components with one button. macOS still asks you to approve Accessibility, and Chrome requires the final **Load unpacked** step until a Chrome Web Store version exists.
 >
-> **Signing:** `0.1.12` uses a persistent self-signed identity, not Apple notarization. Updates reuse the same identity to retain Accessibility approval. Upgrading from `0.1.0` needs one renewal, guided by the app. macOS may block its first launch. See [installation help](docs/INSTALL.md#macos-blocked-the-installer) for Apple's approval steps; the installer never disables Gatekeeper.
+> **Signing:** `0.1.13` uses a persistent self-signed identity, not Apple notarization. Updates reuse the same identity to retain Accessibility approval. Upgrading from `0.1.0` needs one renewal, guided by the app. macOS may block its first launch. See [installation help](docs/INSTALL.md#macos-blocked-the-installer) for Apple's approval steps; the installer never disables Gatekeeper.
 
-Prefer a ZIP? [Download the Mac installer ZIP](https://github.com/00cyre/openlocker/releases/download/v0.1.12/OpenLocker-0.1.12-macOS.zip). [Checksums](https://github.com/00cyre/openlocker/releases/download/v0.1.12/SHA256SUMS.txt) are included with the release.
+Prefer a ZIP? [Download the Mac installer ZIP](https://github.com/00cyre/openlocker/releases/download/v0.1.13/OpenLocker-0.1.13-macOS.zip). [Checksums](https://github.com/00cyre/openlocker/releases/download/v0.1.13/SHA256SUMS.txt) are included with the release.
 
 ## Automatic unlock and updates
 
@@ -69,7 +69,9 @@ Each protected app and website has its own **five-minute inactivity timer**. Ret
 
 OpenLocker follows your system light or dark appearance, including the Chrome lock page, popup, settings, Mac dialogs, and installer. No theme switch is needed.
 
-Both the Mac menu and the extension offer **Update to…** when a newer release is available. Click once to verify and install it; the app relaunches or the extension reloads. If apps are protected, Touch ID confirms the Mac app update. Install 0.1.2 once to get these controls. Source-loaded extensions must first switch to the folder prepared by **Install Chrome extension…**. Mac app updates install the Chrome extension files too. If Chrome is still running an older version, OpenLocker shows a reload reminder and **Open extension settings** opens its Chrome settings in a new tab. Click **Reload** there, keeping the extension installed, and refresh already-open webpages when ready. Reload in every Chrome profile where you use OpenLocker.
+Enable **Automatically install updates** in the Mac menu to keep OpenLocker current. It checks at launch and every six hours, then installs a verified newer release after the Mac has been idle for five minutes. It waits while you're unlocking or setting up an app, and checks again before restarting. Automatic updates run without a Touch ID prompt. This option is off until you enable it; failed attempts retry later.
+
+Both the Mac menu and the extension also offer **Update to…** for an immediate update. If apps are protected, Touch ID confirms a manual Mac update. Source-loaded extensions must first switch to the folder prepared by **Install Chrome extension…**. Mac app updates install the Chrome extension files too. If Chrome is still running an older version, OpenLocker shows a reload reminder and **Open extension settings** opens its Chrome settings in a new tab. Click **Reload** there, keeping the extension installed, and refresh already-open webpages when ready. Reload in every Chrome profile where you use OpenLocker.
 
 Updates preserve your protected websites and app list. The extension keeps a local recovery journal for locked tabs, including duplicate URLs, tab positions, and pinned tabs. Button-driven updates retain those tabs in place; manual Chrome reloads restore lock pages that Chrome closes. The Mac updater remembers which protected apps were running and restarts only OpenLocker.
 

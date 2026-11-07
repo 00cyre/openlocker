@@ -6,6 +6,8 @@ mkdir -p build
 xcrun swiftc -swift-version 5 macapp/LockPolicy.swift tests/mac_policy.test.swift -o build/mac-policy-tests
 build/mac-policy-tests
 python3 tests/unlock_focus.py
+xcrun swiftc -swift-version 5 macapp/AutomaticUpdatePolicy.swift tests/automatic_update.test.swift -o build/automatic-update-tests
+build/automatic-update-tests
 
 bash scripts/test-activation.sh
 

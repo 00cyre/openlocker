@@ -66,7 +66,7 @@ final class InstallerDelegate: NSObject, NSApplicationDelegate {
         text("✓  Apple Silicon + Intel\n✓  No Terminal, Xcode, or admin password\n✓  No accounts or cloud")
         button("Install OpenLocker", action: #selector(install), primary: true)
         text("Mac app locking needs Accessibility permission. Chrome will ask you to load the extension once. We'll guide you through both.", size: 12)
-        text("Version 0.1.12 · macOS 13+ · Google Chrome 120+", size: 11)
+        text("Version 0.1.13 · macOS 13+ · Google Chrome 120+", size: 11)
     }
     @objc private func install() {
         if !NSRunningApplication.runningApplications(withBundleIdentifier: "cc.openlocker.mac").isEmpty {
@@ -127,6 +127,7 @@ final class InstallerDelegate: NSObject, NSApplicationDelegate {
 // already verified this entire bundle against the pinned release certificate.
 if CommandLine.arguments.contains("--update-chrome") || CommandLine.arguments.contains("--update-app") {
     let desktop = CommandLine.arguments.contains("--update-app")
+    let automatic = desktop && CommandLine.arguments.contains("--automatic-update")
     var recoveryToken: UUID?
     var recoveryError: Error?
     if let flag = CommandLine.arguments.firstIndex(of: "--resume-update"), CommandLine.arguments.indices.contains(flag + 1) {
@@ -134,7 +135,8 @@ if CommandLine.arguments.contains("--update-chrome") || CommandLine.arguments.co
     }
     if desktop {
         // The app launches this process before terminating. Wait for its exact
-        // instance to exit; do not kill it or bypass its Touch ID confirmation.
+        // instance to exit; never kill it. The app authorizes either a manual
+        // Touch ID update or an opted-in automatic update while the Mac is idle.
         guard let flag = CommandLine.arguments.firstIndex(of: "--parent-pid"),
               CommandLine.arguments.indices.contains(flag + 1), let pid = Int32(CommandLine.arguments[flag + 1]), pid > 1 else { exit(2) }
         // Older OpenLocker versions did not create a handoff checkpoint. Capture
@@ -178,12 +180,15 @@ if CommandLine.arguments.contains("--update-chrome") || CommandLine.arguments.co
             if let token = recoveryToken {
                 configuration.arguments = ["--resume-update", token.uuidString]
             }
+            if automatic { configuration.arguments.append("--automatic-update") }
             NSWorkspace.shared.openApplication(at: result.desktopApp, configuration: configuration) { _, error in
-                if error != nil {
-                    let alert = NSAlert(); alert.messageText = "Update installed"
-                    alert.informativeText = "Open OpenLocker from your Applications folder to resume app protection."; alert.runModal()
+                DispatchQueue.main.async {
+                    if error != nil {
+                        let alert = NSAlert(); alert.messageText = "Update installed"
+                        alert.informativeText = "Open OpenLocker from your Applications folder to resume app protection."; alert.runModal()
+                    }
+                    exit(0)
                 }
-                exit(0)
             }
             RunLoop.main.run()
         }
@@ -192,17 +197,26 @@ if CommandLine.arguments.contains("--update-chrome") || CommandLine.arguments.co
         if desktop {
             let alert = NSAlert(); alert.messageText = "OpenLocker couldn't finish updating"
             alert.informativeText = "Your protected app list is preserved. Reopen OpenLocker and try again. " + error.localizedDescription
-            alert.runModal()
+            if !automatic { alert.runModal() }
             if let flag = CommandLine.arguments.firstIndex(of: "--previous-app"), CommandLine.arguments.indices.contains(flag + 1) {
                 let previous = URL(fileURLWithPath: CommandLine.arguments[flag + 1])
                 if NSDictionary(contentsOf: previous.appendingPathComponent("Contents/Info.plist"))?["CFBundleIdentifier"] as? String == "cc.openlocker.mac" {
                     let configuration = NSWorkspace.OpenConfiguration()
                     configuration.activates = false
                     if let token = recoveryToken { configuration.arguments = ["--resume-update", token.uuidString] }
-                    NSWorkspace.shared.openApplication(at: previous, configuration: configuration) { _, _ in exit(1) }
+                    if automatic { configuration.arguments.append("--automatic-update-failed") }
+                    NSWorkspace.shared.openApplication(at: previous, configuration: configuration) { _, error in
+                        // Restore protection before presenting any failure UI.
+                        // A quiet rollback tells the app to back off for an hour.
+                        DispatchQueue.main.async {
+                            if automatic && error != nil { alert.runModal() }
+                            exit(1)
+                        }
+                    }
                     RunLoop.main.run()
                 }
             }
+            if automatic { alert.runModal() }
         }
         exit(1)
     }

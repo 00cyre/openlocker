@@ -30,6 +30,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, NSWind
     private var availableRelease: OpenLockerRelease?
     private var updateBusy = false
     private var updateChecking = false
+    private var automaticUpdatePolicy = AutomaticUpdatePolicy()
+    private var menuIsOpen = false
     private let shields = WindowShield()
     private let green = OpenLockerTheme.accent
     private let configURL = FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent("Library/Application Support/OpenLocker/protected-apps.json")
@@ -52,6 +54,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, NSWind
         menu.delegate = self
         status.menu = menu
         rebuildMenu()
+        if CommandLine.arguments.contains("--automatic-update-failed") {
+            automaticUpdatePolicy.recordFailure(now: ProcessInfo.processInfo.systemUptime)
+        }
         checkUpdates(silent: true)
         updateTimer = Timer.scheduledTimer(withTimeInterval: 6 * 60 * 60, repeats: true) { [weak self] _ in self?.checkUpdates(silent: true) }
         shields.onUnlock = { [weak self] pid in
@@ -65,8 +70,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, NSWind
         lockAll()
         restoreUpdateSession()
         refreshChromeUpdateIndicator()
-        chromeStatusTimer = Timer.scheduledTimer(withTimeInterval: 60, repeats: true) { [weak self] _ in self?.refreshChromeUpdateIndicator() }
-        if CommandLine.arguments.contains("--resume-update") {
+        chromeStatusTimer = Timer.scheduledTimer(withTimeInterval: 60, repeats: true) { [weak self] _ in
+            self?.refreshChromeUpdateIndicator()
+            self?.attemptAutomaticUpdate()
+        }
+        if CommandLine.arguments.contains("--resume-update"),
+           !CommandLine.arguments.contains("--automatic-update"),
+           !CommandLine.arguments.contains("--automatic-update-failed") {
             DispatchQueue.main.async { [weak self] in self?.showChromeReloadNotice() }
         }
         timer = Timer(timeInterval: 0.15, repeats: true) { [weak self] _ in self?.tick() }
@@ -193,7 +203,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, NSWind
         refreshShields()
         if authentication != nil { dismissGate() }
     }
-    func menuWillOpen(_ menu: NSMenu) { rebuildMenu() }
+    func menuWillOpen(_ menu: NSMenu) { menuIsOpen = true; rebuildMenu() }
+    func menuDidClose(_ menu: NSMenu) { menuIsOpen = false }
     private func item(_ title: String, action: Selector?, represented: Any? = nil) -> NSMenuItem {
         let item = NSMenuItem(title: title, action: action, keyEquivalent: "")
         item.target = self; item.representedObject = represented
@@ -224,6 +235,16 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, NSWind
         menu.addItem(login)
         let update = item(updateBusy ? "Updating…" : updateChecking ? "Checking for updates…" : availableRelease.map { "Update to \($0.version.text)…" } ?? "Check for updates…", action: #selector(updateApp))
         update.isEnabled = !updateBusy && !updateChecking; menu.addItem(update)
+        let automatic = item("Automatically install updates", action: #selector(toggleAutomaticUpdates))
+        automatic.state = automaticUpdatesEnabled ? .on : .off
+        menu.addItem(automatic)
+        if automaticUpdatesEnabled, automaticUpdatePolicy.failedAt != nil {
+            let retry = item("Automatic update delayed — will retry", action: nil)
+            retry.isEnabled = false; menu.addItem(retry)
+        } else if automaticUpdatesEnabled, availableRelease != nil, !updateBusy {
+            let pending = item("Will install after 5 minutes of Mac inactivity", action: nil)
+            pending.isEnabled = false; menu.addItem(pending)
+        }
         if let chrome = chromeInstallation, chrome.needsReload {
             menu.addItem(item("Chrome \(chrome.installed.text) installed — Reload extension…", action: #selector(openChromeExtensionSettings)))
         }
@@ -328,6 +349,29 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, NSWind
         } catch { alert("Couldn't set up Chrome", error.localizedDescription) }
     }
     private var appVersion: ReleaseVersion { ReleaseVersion(Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "0.0.0")! }
+    private var automaticUpdatesEnabled: Bool {
+        UserDefaults.standard.bool(forKey: AutomaticUpdatePolicy.preferenceKey)
+    }
+    @objc private func toggleAutomaticUpdates() {
+        let enabled = !automaticUpdatesEnabled
+        UserDefaults.standard.set(enabled, forKey: AutomaticUpdatePolicy.preferenceKey)
+        automaticUpdatePolicy.resetRetry()
+        if enabled { checkUpdates(silent: true) }
+    }
+    private func automaticUpdateIsAllowed() -> Bool {
+        let idle = CGEventSource.secondsSinceLastEventType(.combinedSessionState, eventType: CGEventType(rawValue: UInt32.max)!)
+        return automaticUpdatePolicy.allowsInstallation(enabled: automaticUpdatesEnabled,
+            hasUpdate: availableRelease.map { $0.version > appVersion } ?? false,
+            idleSeconds: idle,
+            interactionInProgress: action != nil || authentication != nil || accessibilitySetup.isVisible ||
+                picker.isPicking || menuIsOpen || NSApp.modalWindow != nil || storageError != nil,
+            now: ProcessInfo.processInfo.systemUptime)
+    }
+    private func attemptAutomaticUpdate() {
+        guard !updateBusy, !updateChecking, automaticUpdateIsAllowed() else { return }
+        automaticUpdatePolicy.resetRetry()
+        installUpdate(automatic: true)
+    }
     private func checkUpdates(silent: Bool) {
         guard !updateBusy && !updateChecking else { return }
         updateChecking = true
@@ -337,7 +381,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, NSWind
                 let release = try await ReleaseUpdater.latest()
                 self.availableRelease = release.version > self.appVersion ? release : nil
                 self.updateChecking = false
-                if !silent {
+                if silent { self.attemptAutomaticUpdate() }
+                else {
                     if self.availableRelease != nil { self.updateApp() }
                     else if self.chromeInstallation?.needsReload == true { self.showChromeReloadNotice() }
                     else { self.alert("You're up to date", "OpenLocker \(self.appVersion.text) is the latest installed version.") }
@@ -350,8 +395,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, NSWind
         guard availableRelease != nil else { checkUpdates(silent: false); return }
         if policy.apps.isEmpty { installUpdate() } else { showGate(.update) }
     }
-    private func installUpdate() {
+    private func installUpdate(automatic: Bool = false) {
         guard let release = availableRelease, !updateBusy else { return }
+        if automatic && !automaticUpdateIsAllowed() { return }
         updateBusy = true
         Task { @MainActor [weak self] in
             guard let self else { return }
@@ -364,21 +410,29 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, NSWind
                         return AppRecoveryRecord(bundleID: id, path: protected.path, processID: app.processIdentifier,
                                                  wasHidden: app.isHidden, wasLocked: !self.policy.isUnlocked(id, pid: app.processIdentifier))
                     }
+                    // Recheck immediately before the handoff: the user may have
+                    // returned, opened a prompt, or opted out during download.
+                    if automatic && !self.automaticUpdateIsAllowed() {
+                        staged.remove(); self.updateBusy = false; return
+                    }
                     let token = try UpdateRecovery.save(running, to: self.recoveryURL)
                     self.lockAll()
-                    _ = try staged.launch(arguments: ["--update-app", "--parent-pid", String(ProcessInfo.processInfo.processIdentifier),
-                        "--previous-app", Bundle.main.bundleURL.path, "--resume-update", token.uuidString])
+                    var arguments = ["--update-app", "--parent-pid", String(ProcessInfo.processInfo.processIdentifier),
+                        "--previous-app", Bundle.main.bundleURL.path, "--resume-update", token.uuidString]
+                    if automatic { arguments.append("--automatic-update") }
+                    _ = try staged.launch(arguments: arguments)
                 }
                 catch { staged.remove(); throw error }
                 NSApp.terminate(nil)
             } catch {
                 self.updateBusy = false
-                self.alert("Couldn't update OpenLocker", error.localizedDescription)
+                if automatic { self.automaticUpdatePolicy.recordFailure(now: ProcessInfo.processInfo.systemUptime) }
+                else { self.alert("Couldn't update OpenLocker", error.localizedDescription) }
             }
         }
     }
     @objc private func welcome() {
-        alert("Your apps. Your fingerprint.", "Click OpenLocker's menu-bar icon → Lock an app, then click any window to protect its whole app. Each app stays unlocked while you use it and relocks after 5 minutes without use. Using another app does not restart its timer.\n\nAccessibility and enrolled Touch ID are required. OpenLocker must stay running; enable Start at login if you want it after a restart. This is a convenience lock: macOS may briefly reveal windows before the blur appears, and stopping OpenLocker bypasses it.\n\nVersion 0.1.12 · Local only · No accounts")
+        alert("Your apps. Your fingerprint.", "Click OpenLocker's menu-bar icon → Lock an app, then click any window to protect its whole app. Each app stays unlocked while you use it and relocks after 5 minutes without use. Using another app does not restart its timer.\n\nAccessibility and enrolled Touch ID are required. OpenLocker must stay running; enable Start at login if you want it after a restart. This is a convenience lock: macOS may briefly reveal windows before the blur appears, and stopping OpenLocker bypasses it.\n\nVersion 0.1.13 · Local only · No accounts")
     }
     private func alert(_ title: String, _ message: String) {
         let alert = NSAlert(); alert.messageText = title; alert.informativeText = message
