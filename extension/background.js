@@ -4,6 +4,10 @@ import { LockedTabs } from './locked-tabs.js';
 import { HOST, MAX_DOMAINS, IDLE_SECONDS, normalizeDomain, protectedDomain, domainRules, grantRule, lockedURL, originalURL, trustedPage, webURL, matches } from './core.js';
 
 const base = chrome.runtime.getURL('');
+const now = Date.now;
+const timeout = IDLE_SECONDS * 1000;
+const expiryAlarm = 'openlocker-domain-expiry';
+const liveGrant = (grant, time = now()) => Number.isFinite(grant.lastActivity) && time >= grant.lastActivity && time - grant.lastActivity < timeout;
 const lockedTabs = new LockedTabs(chrome, base);
 let tail = Promise.resolve();
 let generation = 0;
@@ -18,7 +22,7 @@ const serial = task => {
 const local = () => chrome.storage.local.get({ domains: [] });
 const session = () => chrome.storage.session.get({ grants: [] });
 const fail = message => { throw new Error(message); };
-const allows = (url, grants) => !!webURL(url) && grants.some(g => matches(webURL(url).hostname, g.domain));
+const allows = (url, grants) => !!webURL(url) && grants.some(g => liveGrant(g) && matches(webURL(url).hostname, g.domain));
 const activityState = () => chrome.idle.queryState(IDLE_SECONDS).catch(() => 'idle');
 chrome.idle.setDetectionInterval(IDLE_SECONDS);
 
@@ -27,10 +31,27 @@ async function syncDomains(domains) {
   await chrome.declarativeNetRequest.updateDynamicRules({ removeRuleIds: current.map(r => r.id), addRules: domainRules(domains, base) });
 }
 
+async function scheduleExpiry(grants) {
+  if (!grants.length) { await chrome.alarms.clear(expiryAlarm); return; }
+  try {
+    const when = Math.min(...grants.map(g => g.lastActivity + timeout));
+    const scheduled = await chrome.alarms.get(expiryAlarm);
+    if (scheduled?.scheduledTime !== when) await chrome.alarms.create(expiryAlarm, { when });
+  }
+  catch {
+    // A grant without a scheduled expiration must not remain open indefinitely.
+    const rules = await chrome.declarativeNetRequest.getSessionRules();
+    await chrome.declarativeNetRequest.updateSessionRules({ removeRuleIds: rules.map(r => r.id), addRules: [] });
+    await chrome.storage.session.set({ grants: [] });
+    await shieldTabs((await local()).domains);
+    fail('Could not schedule automatic locking. Your websites were locked.');
+  }
+}
 async function setGrants(grants) {
   const current = await chrome.declarativeNetRequest.getSessionRules();
   await chrome.declarativeNetRequest.updateSessionRules({ removeRuleIds: current.map(r => r.id), addRules: grants.map(grantRule) });
   await chrome.storage.session.set({ grants });
+  await scheduleExpiry(grants);
 }
 
 async function shieldTabs(domains, grants = []) {
@@ -59,7 +80,38 @@ async function revoke() {
 async function expireIfInactive() {
   const inactive = await activityState() !== 'active';
   if (inactive) await revoke();
+  else {
+    const { grants } = await session();
+    const keep = grants.filter(g => liveGrant(g));
+    if (keep.length !== grants.length) {
+      generation++;
+      await setGrants(keep);
+      await shieldTabs((await local()).domains, keep);
+    }
+  }
   return inactive;
+}
+
+async function recordTabUse(tabId, sender = null) {
+  if (installingUpdate || await expireIfInactive()) return;
+  const tab = await chrome.tabs.get(tabId).catch(() => null);
+  const url = sender ? webURL(tab?.url)?.href : originalURL(tab?.url, base);
+  if (!tab?.active || !url || tab.pendingUrl && tab.pendingUrl !== tab.url) return;
+  if (sender && (sender.tab.url !== tab.url || sender.documentLifecycle && sender.documentLifecycle !== 'active')) return;
+  const window = await chrome.windows.get(tab.windowId);
+  if (!window.focused) return;
+  const { grants } = await session();
+  const host = webURL(url).hostname;
+  const time = now();
+  let changed = false;
+  const updated = grants.map(g => {
+    if (!liveGrant(g, time) || !matches(host, g.domain)) return g;
+    changed = true;
+    return { ...g, lastActivity: time };
+  });
+  if (!changed) return;
+  await chrome.storage.session.set({ grants: updated });
+  await scheduleExpiry(updated);
 }
 
 // Dynamic rules survive restarts. Session allow rules never survive a browser restart.
@@ -68,11 +120,11 @@ const ready = serial(async () => {
   await chrome.storage.session.setAccessLevel({ accessLevel: 'TRUSTED_CONTEXTS' });
   const domains = await loadProtectedSites(chrome);
   const { grants } = await session();
-  // A worker suspension is not a browser restart. Preserve domain sessions
-  // while the user is active, including background tabs and other windows.
+  // A worker suspension is not a browser restart. Preserve each domain's
+  // remaining deadline, including background tabs and other windows.
   // Old per-tab grants are intentionally not migrated into broader grants.
   const active = await activityState() === 'active';
-  const keep = active ? grants.filter(g => g.tabId === undefined && domains.includes(g.domain)) : [];
+  const keep = active ? grants.filter(g => g.tabId === undefined && domains.includes(g.domain) && liveGrant(g)) : [];
   await syncDomains(domains);
   await setGrants(keep);
   const { recoveryReady } = await chrome.storage.session.get({ recoveryReady: false });
@@ -117,6 +169,10 @@ async function handle(message, sender) {
   await ready;
   if (sender.id !== chrome.runtime.id) fail('Unknown sender.');
   const type = message?.type;
+  if (type === 'ACTIVITY') {
+    if (!sender.tab || !Number.isInteger(sender.frameId) || sender.frameId < 0 || !webURL(sender.tab.url)) fail('Invalid page activity.');
+    return serial(async () => { await recordTabUse(sender.tab.id, sender); return {}; });
+  }
   // Web pages can only ask whether their own top-level document should be covered.
   if (type === 'GUARD') {
     if (!sender.tab || sender.frameId !== 0 || !webURL(sender.url)) fail('Invalid page.');
@@ -126,7 +182,9 @@ async function handle(message, sender) {
       const { grants } = await session();
       const domain = protectedDomain(sender.url, domains);
       const allowed = !domain || allows(sender.url, grants);
-      return { allowed, redirect: allowed ? null : lockedURL(base, sender.url) };
+      const active = grants.filter(g => liveGrant(g) && matches(webURL(sender.url).hostname, g.domain));
+      const expiresAt = domain && active.length ? Math.max(...active.map(g => g.lastActivity + timeout)) : null;
+      return { allowed, expiresAt, redirect: allowed ? null : lockedURL(base, sender.url) };
     });
   }
   if (!trustedPage(sender, base, ['popup.html', 'locked.html', 'settings.html'])) fail('This action is only available inside OpenLocker.');
@@ -199,7 +257,7 @@ async function handle(message, sender) {
       const latest = await local();
       if (protectedDomain(url, latest.domains) !== domain) fail('The domain settings changed. Try again.');
       const { grants } = await session();
-      await setGrants([...grants.filter(g => g.domain !== domain), { domain }]);
+      await setGrants([...grants.filter(g => g.domain !== domain), { domain, lastActivity: now() }]);
       try { await chrome.tabs.update(sender.tab.id, { url }); }
       catch (error) { await setGrants(grants); throw error; }
       return {};
@@ -238,12 +296,13 @@ const event = task => { serial(async () => { await ready; await task(); }).catch
 // It still invalidates a fingerprint request for a tab the user left.
 chrome.tabs.onActivated.addListener(({ tabId }) => {
   if (pendingUnlock && pendingUnlock.tabId !== tabId) generation++;
-  event(async () => lockedTabs.remember((await local()).domains));
+  event(async () => { await recordTabUse(tabId); await lockedTabs.remember((await local()).domains); });
 });
 chrome.windows.onFocusChanged.addListener(windowId => {
   if (windowId !== chrome.windows.WINDOW_ID_NONE) event(async () => {
     const [tab] = await chrome.tabs.query({ active: true, windowId });
     if (pendingUnlock && pendingUnlock.tabId !== tab?.id) generation++;
+    if (tab) await recordTabUse(tab.id);
   });
 });
 chrome.tabs.onRemoved.addListener((tabId, info) => {
@@ -275,6 +334,12 @@ chrome.webNavigation.onCommitted.addListener(details => {
   });
 });
 chrome.idle.onStateChanged.addListener(state => { if (state !== 'active') event(() => revoke()); });
+chrome.alarms.onAlarm.addListener(alarm => {
+  if (alarm.name === expiryAlarm) event(async () => {
+    await expireIfInactive();
+    await scheduleExpiry((await session()).grants);
+  });
+});
 chrome.runtime.onStartup.addListener(() => event(() => revoke()));
 chrome.runtime.onInstalled.addListener(details => event(async () => {
   await revoke();

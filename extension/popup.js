@@ -17,7 +17,7 @@ async function render() {
     $('#site-label').textContent = state.domain ? (state.unlocked ? 'Unlocked for now' : 'Protected website') : 'Current website';
     $('#site-description').textContent = state.domain ? 'This domain and its subdomains are protected.' : 'Lock this domain and its subdomains.';
     $('#action').textContent = !helper.available ? 'Set up Touch ID' : state.unlocked ? 'Lock this site now' : state.domain ? 'Open locked tab' : 'Lock this site';
-    $('#hint').textContent = state.unlocked ? 'Relocks after 5 minutes without activity.' : 'Touch ID once. Stays open while you’re active.';
+    $('#hint').textContent = state.unlocked ? 'Relocks after 5 minutes without using this site.' : 'Touch ID once. Stays open while you use this site.';
   }
   $('#action').disabled = false;
 }

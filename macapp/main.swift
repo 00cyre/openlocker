@@ -103,6 +103,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, NSWind
             guard let self, let app = note.userInfo?[NSWorkspace.applicationUserInfoKey] as? NSRunningApplication,
                   let id = app.bundleIdentifier, app.activationPolicy == .regular,
                   !["cc.openlocker.mac", "com.apple.SecurityAgent", "com.apple.LocalAuthentication.UIAgent"].contains(id) else { return }
+            self.policy.recordUse(id, pid: app.processIdentifier)
             let locked = self.policy.app(id) != nil && !self.policy.isUnlocked(id, pid: app.processIdentifier)
             for command in activationCommands(appID: id, pid: app.processIdentifier, locked: locked, hasPrompt: self.action != nil) {
                 switch command {
@@ -147,7 +148,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, NSWind
     private func refreshActivity() {
         // kCGAnyInputEventType is imported as the all-bits-set event value.
         let idle = CGEventSource.secondsSinceLastEventType(.combinedSessionState, eventType: CGEventType(rawValue: UInt32.max)!)
-        if policy.updateActivity(idleSeconds: idle) { refreshShields(); dismissGate() }
+        let active = NSWorkspace.shared.frontmostApplication
+        if policy.updateActivity(idleSeconds: idle, activeAppID: active?.bundleIdentifier, activePID: active?.processIdentifier) {
+            refreshShields(); dismissGate()
+        }
     }
     private func tick() {
         refreshActivity()
@@ -192,7 +196,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, NSWind
     private func rebuildMenu() {
         menu.removeAllItems()
         let header = item("OpenLocker", action: nil); header.isEnabled = false; menu.addItem(header)
-        let timeout = item("Relocks after 5 minutes idle", action: nil); timeout.isEnabled = false; menu.addItem(timeout)
+        let timeout = item("Each app relocks after 5 minutes away", action: nil); timeout.isEnabled = false; menu.addItem(timeout)
         menu.addItem(item("Lock an app…", action: #selector(pickApp)))
         menu.addItem(.separator())
         if policy.apps.isEmpty { let empty = item("No protected apps yet", action: nil); empty.isEnabled = false; menu.addItem(empty) }
@@ -335,7 +339,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, NSWind
         }
     }
     @objc private func welcome() {
-        alert("Your apps. Your fingerprint.", "Click OpenLocker's menu-bar icon → Lock an app, then click any window to protect its whole app. It stays unlocked while you use your Mac and relocks after 5 minutes without keyboard or mouse activity. Each input restarts the timer.\n\nAccessibility and enrolled Touch ID are required. OpenLocker must stay running; enable Start at login if you want it after a restart. This is a convenience lock: macOS may briefly reveal windows before the blur appears, and stopping OpenLocker bypasses it.\n\nVersion 0.1.8 · Local only · No accounts")
+        alert("Your apps. Your fingerprint.", "Click OpenLocker's menu-bar icon → Lock an app, then click any window to protect its whole app. Each app stays unlocked while you use it and relocks after 5 minutes without use. Using another app does not restart its timer.\n\nAccessibility and enrolled Touch ID are required. OpenLocker must stay running; enable Start at login if you want it after a restart. This is a convenience lock: macOS may briefly reveal windows before the blur appears, and stopping OpenLocker bypasses it.\n\nVersion 0.1.9 · Local only · No accounts")
     }
     private func alert(_ title: String, _ message: String) {
         let alert = NSAlert(); alert.messageText = title; alert.informativeText = message
@@ -366,7 +370,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, NSWind
         stack.addArrangedSubview(icon)
         let title: String, detail: String, buttonTitle: String
         switch requested {
-        case .unlock(let app): title = "\(app.name) is locked."; detail = "A quick touch, and you're back in.\nRelocks after 5 minutes without activity."; buttonTitle = "Unlock with Touch ID"
+        case .unlock(let app): title = "\(app.name) is locked."; detail = "A quick touch, and you're back in.\nRelocks after 5 minutes without using this app."; buttonTitle = "Unlock with Touch ID"
         case .remove(let app): title = "Stop protecting \(app.name)?"; detail = "Confirm with your fingerprint to remove this app from OpenLocker."; buttonTitle = "Remove with Touch ID"
         case .update: title = "Update OpenLocker?"; detail = "Keeps your apps open and protection saved. Only OpenLocker restarts."; buttonTitle = "Update with Touch ID"
         case .quit: title = "Quit OpenLocker?"; detail = "Your apps won't be protected while OpenLocker is closed."; buttonTitle = "Quit with Touch ID"

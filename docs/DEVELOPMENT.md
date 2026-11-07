@@ -10,7 +10,7 @@ cd openlocker
 npm run build:installer
 ```
 
-Open `dist/OpenLocker-0.1.8-macOS.dmg` and run the installer, or build individual pieces:
+Open `dist/OpenLocker-0.1.9-macOS.dmg` and run the installer, or build individual pieces:
 
 ```sh
 npm run build:mac          # Mac menu-bar app in build/desktop/
@@ -53,19 +53,19 @@ GitHub checks build both the Chrome code and universal macOS development artifac
 
 The menu-bar app persists a list of bundle IDs, names, and bundle paths. Window selection uses on-screen window metadata; it does not capture pixels. Accessibility observes window changes and restores minimized windows after authentication. Workspace notifications handle activation, launches, exits, sleep, and session changes. Focus loss, hiding, and minimizing preserve grants.
 
-`LockPolicy` owns process-scoped unlocks, the five-minute idle transition, and generation-based authentication invalidation. A successful Touch ID response can create a grant only for the selected protected app and current process. Relocking, cancellation, or changing the target invalidates an old response. No grants are persisted. The application covers locked app windows with native behind-window blur panels that intercept input. A Touch ID modal appears in front when the user returns. It does not hide or minimize the protected app: doing so transfers focus and can dismiss the unlock modal. A deterministic activation-event replay guards this regression. macOS may display content before overlays are positioned.
+`LockPolicy` owns process-scoped unlocks, individual app deadlines, and generation-based authentication invalidation. A successful Touch ID response can create a grant only for the selected protected app and current process. Relocking, cancellation, or changing the target invalidates an old response. No grants are persisted. The application covers locked app windows with native behind-window blur panels that intercept input. A Touch ID modal appears in front when the user returns. It does not hide or minimize the protected app: doing so transfers focus and can dismiss the unlock modal. A deterministic activation-event replay guards this regression. macOS may display content before overlays are positioned.
 
 ## Chrome flow
 
-Persistent `declarativeNetRequest` rules redirect protected top-level network requests to a local lock page and block matching subresources. The service worker accepts mutations only from named extension pages and sends a fresh request ID to the allowlisted native host. Swift uses `deviceOwnerAuthenticationWithBiometrics`, with fallback hidden and reuse disabled.
+Persistent `declarativeNetRequest` rules redirect protected top-level network requests to a local lock page and block matching subresources. The service worker accepts protection changes and authentication requests only from named extension pages and sends a fresh request ID to the allowlisted native host. Content scripts can check their page's authorization and report activity to renew an existing grant; they cannot create one. Swift uses `deviceOwnerAuthenticationWithBiometrics`, with fallback hidden and reuse disabled.
 
-After a matching successful response, the worker checks that the tab and lock generation have not changed. A session allowance covers the authenticated domain across tabs and windows in the Chrome profile. Switching and navigation preserve it. Five minutes without system input, restarting Chrome, locking the screen, or an explicit lock revoke access. A document-start guard and navigation checks add coverage for cached pages.
+After a matching successful response, the worker checks that the tab and lock generation have not changed. A session allowance covers the authenticated domain across tabs and windows in the Chrome profile. Returning before expiry preserves and renews it. Five minutes without using that domain, restarting Chrome, locking the screen, or an explicit lock revoke access. A document-start guard and navigation checks add coverage for cached pages.
 
-The extension uses [`chrome.idle`](https://developer.chrome.com/docs/extensions/reference/api/idle) with a 300-second detection interval; the idle event wakes its worker. Startup, authorization, and guard checks also query the current idle state. Worker suspension preserves active domain grants; browser restart does not. No page can extend a session by sending synthetic activity messages. A lock page only starts authentication on trusted pointer, keyboard, or wheel input inside its document. Focus, visibility, mouse movement, and global idle-to-active events never start authentication. Browser shortcuts, modifier-only keys, Tab/Escape, and settings interactions are ignored; scroll momentum is coalesced into one attempt. An already-authorized domain can resume on focus without another fingerprint.
+Domain grants carry a `lastActivity` timestamp. The worker schedules the nearest deadline with [`chrome.alarms`](https://developer.chrome.com/docs/extensions/reference/api/alarms), recreating the alarm on worker startup. Chrome may delay alarms; expiry is also enforced on navigation, focus, authorization, and guard checks, and an open protected document covers itself and rechecks at its grant deadline. Timestamp-less legacy grants and backward clock jumps fail closed. `chrome.idle` remains a screen-lock/global-idle fallback. Worker suspension preserves unexpired deadlines; browser restart does not. `activity.js` reports only trusted visible-document input, throttled to once per second, including frames. The worker verifies the live active tab and focused window and only renews existing unexpired grants. Selecting a tab or returning to its Chrome window renews that domain, never an expired grant. Synthetic DOM events, background pages, navigation requests, and activity elsewhere do not keep it unlocked. A lock page only starts authentication on trusted pointer, keyboard, or wheel input inside its document. Focus, visibility, mouse movement, and global idle-to-active events never start authentication. Browser shortcuts, modifier-only keys, Tab/Escape, and settings interactions are ignored; scroll momentum is coalesced into one attempt. An already-authorized domain can resume on focus without another fingerprint.
 
 `LockedTabs` records titles from committed protected web documents before redirecting, tracks title changes, and carries titles through its recovery journal when Chrome replaces tab IDs. Only current protected tabs are retained. Lock pages use [Chrome’s favicon API](https://developer.chrome.com/docs/extensions/how-to/ui/favicons) under the extension origin, never a direct remote icon URL. The `favicon` permission is covered by the existing `tabs` permission; no favicon resource is exposed to websites.
 
-The Mac app samples [`CGEventSource.secondsSinceLastEventType`](https://developer.apple.com/documentation/coregraphics/cgeventsource/secondssincelasteventtype(_:eventtype:)) for `kCGAnyInputEventType` in the combined session state. The existing window-refresh timer also checks the idle threshold. `LockPolicy.updateActivity` invalidates grants and pending authentication once per idle transition. Keyboard, mouse, or tablet input resets the OS clock; OpenLocker reads only elapsed seconds, not the input. No additional monitoring permission is needed.
+The Mac app samples [`CGEventSource.secondsSinceLastEventType`](https://developer.apple.com/documentation/coregraphics/cgeventsource/secondssincelasteventtype(_:eventtype:)) for `kCGAnyInputEventType` in the combined session state. The foreground app ID attributes newly observed input to that app alone; a 20ms tolerance ignores clock-sampling jitter. Grants carry a monotonic last-use timestamp, and both polling and authorization queries enforce the individual deadline. Activating an app renews only an unexpired grant. A system-idle transition still revokes everything. OpenLocker reads input timing, not input contents. No additional monitoring permission is needed.
 
 Grant rules explicitly list resource types, including `main_frame`, so they match the page navigation as well as page resources. Chrome excludes `main_frame` when both resource-type masks are empty, including an empty exclusion list; such a grant redirects straight back to the lock page after successful authentication. The worker regression tests model Chromium's `ComputeElementTypes` behavior at the navigation boundary.
 
@@ -73,9 +73,9 @@ Grant rules explicitly list resource types, including `main_frame`, so they matc
 
 Push a version tag matching `package.json`. The release workflow builds, tests, and publishes these assets only with the pinned persistent signing identity. For local release builds, use `npm run build:release` with the existing signing keychain configured; ad-hoc fallback is rejected:
 
-- `OpenLocker-0.1.8-macOS.dmg`
-- `OpenLocker-0.1.8-macOS.zip`
-- `OpenLocker-0.1.8-source.zip`
+- `OpenLocker-0.1.9-macOS.dmg`
+- `OpenLocker-0.1.9-macOS.zip`
+- `OpenLocker-0.1.9-source.zip`
 - `SHA256SUMS.txt`
 
 The [manual checklist](TESTING.md) covers the hardware and OS integration that automated checks cannot establish. Record unperformed checks in release notes.
@@ -90,7 +90,7 @@ Official references: [Chrome native messaging](https://developer.chrome.com/docs
 
 `ReleaseUpdater` validates stable GitHub release metadata, downloads the fixed repository's DMG, checks its pinned certificate before mounting read-only, and verifies the copied installer and version before execution. The installer exposes Chrome-only and parent-waiting app update modes backed by the same rollback transaction and an exclusive install lock. The Mac app bundles the extension and helper for offline Chrome setup. `installation.json` marks the managed folder; source checkouts must migrate once and are never overwritten. Chrome storage remains keyed to the fixed extension ID.
 
-The extension's pending authentication tracks its initiating tab. Returning from Touch ID to the same tab does not advance its invalidation generation; tab switches or navigation during pending authentication still do. Completed domain grants survive subsequent tab/window switches and navigation. Automatic prompting is limited to a visible, focused lock page and never loops on system-dialog focus changes.
+The extension's pending authentication tracks its initiating tab. Returning from Touch ID to the same tab does not advance its invalidation generation; tab switches or navigation during pending authentication still do. Completed domain grants survive subsequent tab/window switches and navigation. Website prompting requires deliberate input in a visible, focused lock page and never loops on system-dialog focus changes.
 
 ## Update persistence and recovery
 

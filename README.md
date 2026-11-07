@@ -3,11 +3,11 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/00cyre/openlocker/releases/download/v0.1.8/OpenLocker-0.1.8-macOS.dmg"><img src="docs/assets/download.svg" alt="Download OpenLocker for macOS — Apple Silicon and Intel" width="310"></a>
+  <a href="https://github.com/00cyre/openlocker/releases/download/v0.1.9/OpenLocker-0.1.9-macOS.dmg"><img src="docs/assets/download.svg" alt="Download OpenLocker for macOS — Apple Silicon and Intel" width="310"></a>
 </p>
 
 <p align="center">
-  <a href="https://github.com/00cyre/openlocker/releases/tag/v0.1.8">Release notes</a> ·
+  <a href="https://github.com/00cyre/openlocker/releases/tag/v0.1.9">Release notes</a> ·
   <a href="#see-it-in-action">Demo</a> ·
   <a href="#get-started">Get started</a> ·
   <a href="docs/INSTALL.md">Installation help</a> ·
@@ -27,7 +27,7 @@
 | :--- | :--- |
 | Click the menu-bar icon → **Lock an app** → click a window. | Click the toolbar icon → **Lock this site**. |
 | Protects the whole app, including its other windows. | Protects the domain and its subdomains. |
-| Stays unlocked across app switches and minimizing. Relocks after **5 minutes idle**. | Stays unlocked across tabs and windows. Relocks after **5 minutes idle**. |
+| Stays unlocked across app switches and minimizing. Relocks after **5 minutes without using that app**. | Stays unlocked across tabs and windows. Relocks after **5 minutes without using that site**. |
 | Touch ID to unlock, stop protecting, or quit OpenLocker. | Touch ID to unlock or remove a protected domain. |
 
 ## See it in action
@@ -46,7 +46,7 @@
 **macOS 13+ · enrolled Touch ID · Apple Silicon or Intel**<br>
 Chrome 120+ is needed only for website locking.
 
-1. **[Download OpenLocker](https://github.com/00cyre/openlocker/releases/download/v0.1.8/OpenLocker-0.1.8-macOS.dmg)**, open the disk, and launch **Install OpenLocker**.
+1. **[Download OpenLocker](https://github.com/00cyre/openlocker/releases/download/v0.1.9/OpenLocker-0.1.9-macOS.dmg)**, open the disk, and launch **Install OpenLocker**.
 2. Click **Install OpenLocker**. The Mac app, Chrome extension, and Touch ID helper are installed for your user. No Terminal, Xcode, or admin password.
 3. Choose your setup:
 
@@ -55,9 +55,9 @@ Chrome 120+ is needed only for website locking.
 
 > **About the one-click installer:** the button above downloads a ready-to-run installer. It installs all local components with one button. macOS still asks you to approve Accessibility, and Chrome requires the final **Load unpacked** step until a Chrome Web Store version exists.
 >
-> **Signing:** `0.1.8` uses a persistent self-signed identity, not Apple notarization. Updates reuse the same identity to retain Accessibility approval. Upgrading from `0.1.0` needs one renewal, guided by the app. macOS may block its first launch. See [installation help](docs/INSTALL.md#macos-blocked-the-installer) for Apple's approval steps; the installer never disables Gatekeeper.
+> **Signing:** `0.1.9` uses a persistent self-signed identity, not Apple notarization. Updates reuse the same identity to retain Accessibility approval. Upgrading from `0.1.0` needs one renewal, guided by the app. macOS may block its first launch. See [installation help](docs/INSTALL.md#macos-blocked-the-installer) for Apple's approval steps; the installer never disables Gatekeeper.
 
-Prefer a ZIP? [Download the Mac installer ZIP](https://github.com/00cyre/openlocker/releases/download/v0.1.8/OpenLocker-0.1.8-macOS.zip). [Checksums](https://github.com/00cyre/openlocker/releases/download/v0.1.8/SHA256SUMS.txt) are included with the release.
+Prefer a ZIP? [Download the Mac installer ZIP](https://github.com/00cyre/openlocker/releases/download/v0.1.9/OpenLocker-0.1.9-macOS.zip). [Checksums](https://github.com/00cyre/openlocker/releases/download/v0.1.9/SHA256SUMS.txt) are included with the release.
 
 ## Automatic unlock and updates
 
@@ -65,7 +65,7 @@ Locked Chrome tabs keep their saved page title and Chrome’s stored site icon. 
 
 Opening a locked Mac app still brings up Touch ID automatically. Cancel to keep it locked; use the visible button to retry.
 
-Once unlocked, it stays open while you use your Mac. Keyboard and mouse activity anywhere on your Mac restarts a **five-minute inactivity timer**, so switching tabs, windows, and apps stays smooth. After five minutes idle, previously unlocked sites and apps relock. Returning requires Touch ID again. **Lock all now**, locking your Mac, and restarting the relevant component still revoke access immediately.
+Each protected app and website has its own **five-minute inactivity timer**. Returning within five minutes or interacting with it restarts only its timer. Using another app or website does not keep it unlocked. After five minutes without using that app or site, it relocks even while you continue working elsewhere. Website timers are shared across tabs for the same unlocked domain. Returning after expiry requires Touch ID again. **Lock all now**, locking your Mac, and restarting the relevant component still revoke access immediately.
 
 Both the Mac menu and the extension offer **Update to…** when a newer release is available. Click once to verify and install it; the app relaunches or the extension reloads. If apps are protected, Touch ID confirms the Mac app update. Install 0.1.2 once to get these controls. Source-loaded extensions must first switch to the folder prepared by **Install Chrome extension…**.
 

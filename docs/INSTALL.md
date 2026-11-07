@@ -2,13 +2,13 @@
 
 ## Download and open
 
-[Download the macOS installer](https://github.com/00cyre/openlocker/releases/download/v0.1.8/OpenLocker-0.1.8-macOS.dmg), open the disk image, and open **Install OpenLocker.app**. Click **Install OpenLocker**.
+[Download the macOS installer](https://github.com/00cyre/openlocker/releases/download/v0.1.9/OpenLocker-0.1.9-macOS.dmg), open the disk image, and open **Install OpenLocker.app**. Click **Install OpenLocker**.
 
 The universal installer contains Apple Silicon and Intel binaries. You need macOS 13+ and an enrolled Touch ID fingerprint; no compiler, Node, Terminal, or admin password is needed for the downloaded build.
 
 ### macOS blocked the installer
 
-Version 0.1.8 uses a persistent self-signed certificate and is **not notarized by Apple**. After you try to open it, macOS may require you to approve that specific app in **System Settings → Privacy & Security → Open Anyway**. Follow [Apple's instructions](https://support.apple.com/en-us/102445) only if you trust the download. Do not disable Gatekeeper or remove quarantine attributes. The installer does neither.
+Version 0.1.9 uses a persistent self-signed certificate and is **not notarized by Apple**. After you try to open it, macOS may require you to approve that specific app in **System Settings → Privacy & Security → Open Anyway**. Follow [Apple's instructions](https://support.apple.com/en-us/102445) only if you trust the download. Do not disable Gatekeeper or remove quarantine attributes. The installer does neither.
 
 If macOS reports that a download is damaged or contains malware, stop and obtain a fresh release or build from source; do not treat that warning as the ordinary unidentified-developer prompt.
 
@@ -19,7 +19,7 @@ If macOS reports that a download is damaged or contains malware, stop and obtain
 3. Allow OpenLocker in **System Settings → Privacy & Security → Accessibility**, then choose **Lock an app** again.
 4. Click any window of the app you want to protect. OpenLocker protects that whole app and places a blur panel over its windows until Touch ID succeeds.
 
-An unlocked app stays available across app switches, hiding, and minimizing. Five minutes without keyboard or mouse activity anywhere on your Mac relocks it; each input restarts the timer. Click its blurred window, the app in the Dock, or choose it in OpenLocker's menu to unlock. The app stays in place; a modal appears in front and the blur panel consumes mouse, scroll, and keyboard input. Window monitoring uses Accessibility notifications plus a short polling fallback to keep the blur positioned. Touch ID appears when you return after the idle timeout.
+An unlocked app stays available across app switches, hiding, and minimizing. Five minutes without using that app relocks it, even while you use the rest of your Mac. Returning before expiry or input in that app restarts only its timer. Click its blurred window, the app in the Dock, or choose it in OpenLocker's menu to unlock. The app stays in place; a modal appears in front and the blur panel consumes mouse, scroll, and keyboard input. Window monitoring uses Accessibility notifications plus a short polling fallback to keep the blur positioned. Touch ID appears when you return after the idle timeout.
 
 OpenLocker must be running. You can enable **Start at login** in its menu; you may also need to approve it in macOS Login Items. Login launch is off by default. The app does not record the screen, install a keyboard listener, terminate your apps, or manage system policy.
 

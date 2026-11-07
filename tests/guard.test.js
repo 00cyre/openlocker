@@ -8,17 +8,18 @@ function guard({ rootExists = true } = {}) {
   const observers = [];
   const events = {};
   const pending = [];
+  const timers = new Map(); let nextTimer = 0;
   let destination;
   const root = { appendChild(style) { style.isConnected = true; } };
   const document = { documentElement: rootExists ? root : null, createElement() { const style = { isConnected: false, remove() { this.isConnected = false; } }; styles.push(style); return style; } };
   vm.runInNewContext(source, {
-    document,
+    document, Date, setTimeout: (fn,ms) => {timers.set(++nextTimer,{fn,ms});return nextTimer;}, clearTimeout: id=>timers.delete(id),
     chrome: { runtime: { sendMessage: () => new Promise(resolve => pending.push(resolve)) } },
     location: { replace(url) { destination = url; } },
     MutationObserver: class { constructor(callback) { observers.push(callback); } observe() {} disconnect() {} },
     addEventListener: (type, callback) => { events[type] = callback; }
   });
-  return { styles, pending, events, document, showRoot() { document.documentElement = root; observers.forEach(fn => fn()); }, destination: () => destination };
+  return { styles, pending, events, document, timers, showRoot() { document.documentElement = root; observers.forEach(fn => fn()); }, destination: () => destination };
 }
 test('covers before authorization and uncovers allowed documents', async () => {
   const g = guard();
@@ -59,4 +60,14 @@ test('a late allowed response cannot uncover a page after pagehide', async () =>
   g.pending.shift()({ ok: true, allowed: true });
   await new Promise(resolve => setImmediate(resolve));
   assert.equal(g.styles[0].isConnected, true);
+});
+
+test('the page covers itself and rechecks at its deadline without an alarm or tab switch', async () => {
+  const g=guard();g.pending.shift()({ok:true,allowed:true,expiresAt:Date.now()+300000});
+  await new Promise(resolve=>setImmediate(resolve));
+  assert.equal(g.styles[0].isConnected,false);assert.equal(g.timers.size,1);
+  [...g.timers.values()][0].fn();
+  assert.equal(g.styles[0].isConnected,true);assert.equal(g.pending.length,1);
+  g.pending.shift()({ok:true,allowed:false,redirect:'chrome-extension://test/locked.html'});
+  await new Promise(resolve=>setImmediate(resolve));assert.equal(g.styles[0].isConnected,true);
 });

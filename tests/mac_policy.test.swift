@@ -39,6 +39,38 @@ struct MacPolicyTests {
         let quitTicket = policy.ticket()
         policy.invalidateAuthentication()
         precondition(!policy.accepts(quitTicket))
+        var time: TimeInterval = 0
+        var perApp = LockPolicy(apps: [app, other], clock: { time })
+        precondition(perApp.unlock(app.bundleID, pid: 10, ticket: perApp.ticket(for: app.bundleID)))
+        for _ in 0..<5 { time += 60; _ = perApp.updateActivity(idleSeconds: 0) }
+        precondition(!perApp.isUnlocked(app.bundleID, pid: 10), "FAIL: activity in other apps keeps this unused app unlocked after five minutes")
+        time = 1000
+        var independent = LockPolicy(apps: [app, other], clock: { time })
+        precondition(independent.unlock(app.bundleID, pid: 10, ticket: independent.ticket(for: app.bundleID)))
+        precondition(independent.unlock(other.bundleID, pid: 20, ticket: independent.ticket(for: other.bundleID)))
+        time += 250
+        _ = independent.updateActivity(idleSeconds: 0, activeAppID: app.bundleID, activePID: 10)
+        time += 50
+        _ = independent.updateActivity(idleSeconds: 0, activeAppID: "unprotected", activePID: 99)
+        precondition(independent.isUnlocked(app.bundleID, pid: 10))
+        precondition(!independent.isUnlocked(other.bundleID, pid: 20), "Input in one app must not renew another")
+        time += 250
+        independent.recordUse(app.bundleID, pid: 10)
+        precondition(!independent.isUnlocked(app.bundleID, pid: 10), "Returning after expiry must not revive an old grant, even before the timer ticks")
+        time += 10
+        precondition(independent.unlock(app.bundleID, pid: 10, ticket: independent.ticket(for: app.bundleID)))
+        time += 200; independent.recordUse(app.bundleID, pid: 10)
+        time += 100
+        precondition(independent.isUnlocked(app.bundleID, pid: 10), "Returning within five minutes renews this app")
+        time = 3000
+        var polling = LockPolicy(apps: [app], clock: { time })
+        precondition(polling.unlock(app.bundleID, pid: 10, ticket: polling.ticket(for: app.bundleID)))
+        for sample in [3000.0, 3100, 3200, 3299] {
+            time = sample
+            _ = polling.updateActivity(idleSeconds: time - 3000, activeAppID: app.bundleID, activePID: 10)
+        }
+        time = 3300
+        precondition(!polling.isUnlocked(app.bundleID, pid: 10), "Polling an unchanged input timestamp must not renew a grant")
         var idlePolicy = LockPolicy(apps: [app, other])
         precondition(LockPolicy.inactivityTimeout == 300)
         precondition(idlePolicy.unlock(app.bundleID, pid: 10, ticket: idlePolicy.ticket(for: app.bundleID)))
@@ -60,6 +92,6 @@ struct MacPolicyTests {
         precondition(!idlePolicy.unlock(app.bundleID, pid: 10, ticket: beforeIdle))
         precondition(idlePolicy.unlock(app.bundleID, pid: 10, ticket: idlePolicy.ticket(for: app.bundleID)))
         precondition(idlePolicy.updateActivity(idleSeconds: .infinity), "An invalid idle reading fails closed")
-        print("Mac lock policy passed: five-minute idle cutoff, activity reset, process scoping, stale responses, removal, persistence, and manual locking.")
+        print("Mac lock policy passed: independent app deadlines, target-only activity, process scoping, stale responses, removal, persistence, and manual locking.")
     }
 }

@@ -25,7 +25,10 @@ function storage(initial = {}) {
   return { async get(defaults) { return copy({ ...defaults, ...data }); }, async set(value) { Object.assign(data, copy(value)); }, async setAccessLevel() {} };
 }
 let counter = 0;
-async function harness({ domains = ['example.com'], grants = [], tabs, native, network = false, idleSeconds = 0, localData, dynamicRules = [], recoveryReady = false } = {}) {
+async function harness({ domains = ['example.com'], grants = [], tabs, native, network = false, idleSeconds = 0, localData, dynamicRules = [], recoveryReady = false, startTime = 1_000_000 } = {}) {
+  let time = startTime;
+  const alarms = new Map();
+  let focusedWindow = 1;
   let dynamic = copy(dynamicRules);
   let sessionRules = [];
   let detectionInterval;
@@ -35,7 +38,7 @@ async function harness({ domains = ['example.com'], grants = [], tabs, native, n
   let nextWindow = Math.max(0, ...[...tabMap.values()].map(t => t.windowId)) + 1;
   const api = {
     runtime: { id: ID, reload() { reloads++; }, getURL: path => base + path, onMessage: event(), onStartup: event(), onInstalled: event(), openOptionsPage: async () => {}, sendNativeMessage: native || (async (_, message) => ({ id: message.id, success: true, available: true })) },
-    storage: { local: storage(localData ?? { domains }), session: storage({ grants, recoveryReady }) },
+    storage: { local: storage(localData ?? { domains }), session: storage({ grants: grants.map(g => ({ lastActivity: time, ...g })), recoveryReady }) },
     declarativeNetRequest: {
       getDynamicRules: async () => copy(dynamic),
       getSessionRules: async () => copy(sessionRules),
@@ -56,7 +59,8 @@ async function harness({ domains = ['example.com'], grants = [], tabs, native, n
       },
       onActivated: event(), onUpdated: event(), onRemoved: event(), onMoved: event(), onAttached: event(), onDetached: event()
     },
-    windows: { WINDOW_ID_NONE: -1, onFocusChanged: event(), create: async ({ url }) => {
+    alarms: { onAlarm: event(), create: async (name, info) => { alarms.set(name, {...info,scheduledTime:info.when}); }, clear: async name => alarms.delete(name), get: async name => alarms.get(name) },
+    windows: { get: async id => ({id,focused:id===focusedWindow}), WINDOW_ID_NONE: -1, onFocusChanged: event(), create: async ({ url }) => {
       const id = nextWindow++;
       const tab = await api.tabs.create({ url, windowId: id });
       return { id, tabs: [tab] };
@@ -69,15 +73,22 @@ async function harness({ domains = ['example.com'], grants = [], tabs, native, n
     }
   };
   globalThis.chrome = api;
-  await import(`../extension/background.js?test=${counter++}`);
+  const realNow = Date.now;
+  Date.now = () => time;
+  try { await import(`../extension/background.js?test=${counter++}`); } finally { Date.now = realNow; }
   const sender = (page = 'locked.html', tabId = 1) => ({ id: ID, frameId: 0, url: page === 'locked.html' ? tabMap.get(tabId).url : `${base}${page}`, tab: copy(tabMap.get(tabId)) });
   const send = (message, source = sender()) => new Promise(resolve => api.runtime.onMessage.listeners[0](message, source, resolve));
   await send({ type: 'STATUS' }, sender('settings.html', tabMap.keys().next().value));
   return {
-    api, send, sender, tabMap, rules: () => ({ dynamic, sessionRules }),
+    api, send, sender, tabMap, webSender: (id = 1, frameId = 0) => ({ id: ID, frameId, url: tabMap.get(id).url, tab: copy(tabMap.get(id)) }), rules: () => ({ dynamic, sessionRules }),
+    now: () => time,
+    focusWindow(id) { focusedWindow=id; api.windows.onFocusChanged.fire(id); },
+    async flush() { for(let i=0;i<4;i++) await new Promise(resolve=>setImmediate(resolve)); },
     interval: () => detectionInterval,
     reloads: () => reloads,
-    advance(seconds, notify = true) {
+    advance(seconds, notify = true, notifyAlarms = true) {
+      time += seconds * 1000;
+      if (notifyAlarms) for(const [name, info] of alarms) if(info.when<=time) { alarms.delete(name); api.alarms.onAlarm.fire({name}); }
       const before = idleSeconds; idleSeconds += seconds;
       if (notify && before < detectionInterval && idleSeconds >= detectionInterval) api.idle.onStateChanged.fire('idle');
     },
@@ -175,7 +186,7 @@ test('button-driven update keeps locked tab IDs and protected settings through r
   } });
   try {
     const h = await harness({ native: async (_, m) => ({ id: m.id, success: true, supportsUpdates: true, version: '0.9.0' }) });
-    h.api.runtime.getManifest = () => ({ version: '0.1.8' });
+    h.api.runtime.getManifest = () => ({ version: '0.1.9' });
     const result = await h.send({ type: 'INSTALL_UPDATE' }, h.sender('settings.html'));
     assert.equal(result.ok, true, result.error);
     assert.equal(result.updated, true);
@@ -188,7 +199,7 @@ test('button-driven update keeps locked tab IDs and protected settings through r
     assert.deepEqual((await reloaded.send({ type: 'STATUS' })).domains, ['example.com']);
     assert.equal(reloaded.rules().sessionRules.length, 0, 'Recovery never authenticates a domain');
     const closed = await harness({ native: async (_, m) => ({ id: m.id, success: true, supportsUpdates: true, version: '0.9.0' }) });
-    closed.api.runtime.getManifest = () => ({ version: '0.1.8' });
+    closed.api.runtime.getManifest = () => ({ version: '0.1.9' });
     closed.api.runtime.onMessage.listeners[0]({ type: 'INSTALL_UPDATE' }, closed.sender('popup.html'), () => { throw Error('Popup closed'); });
     for (let attempt = 0; attempt < 100 && !closed.reloads(); attempt++) await new Promise(resolve => setImmediate(resolve));
     assert.equal(closed.reloads(), 1, 'A disconnected popup must not strand parked tabs');
@@ -366,14 +377,15 @@ test('unlocking a parent domain also authorizes its protected child', async () =
   assert.equal((await h.send({ type: 'GUARD' }, { id: ID, frameId: 0, url: h.tabMap.get(1).url, tab: { id: 1 } })).allowed, true);
 });
 
-test('five minutes without input revokes grants, and each input starts a fresh five minutes', async () => {
+test('five minutes without site input revokes grants, and input in that site restarts its timer', async () => {
   const h = await harness();
   assert.equal(h.interval(), 300);
   await h.send({ type: 'UNLOCK' });
   for (let i = 0; i < 4; i++) {
     h.advance(299);
     assert.equal((await h.send({ type: 'STATUS' }, h.sender('settings.html'))).unlocked, true);
-    h.input(); // Activity in any Mac app; no page message or tab switch required.
+    h.input();
+    await h.send({ type: 'ACTIVITY' }, h.webSender());
   }
   h.advance(299);
   assert.equal((await h.send({ type: 'STATUS' }, h.sender('settings.html'))).unlocked, true);
@@ -508,4 +520,72 @@ test('closing a tab drops its saved title and malformed optional metadata does n
 test('a pending navigation does not save the old document title for the new URL', async () => {
   const h=await harness({tabs:[{id:1,windowId:1,url:'https://unrelated.test/',pendingUrl:'https://example.com/private',title:'Unrelated page',status:'loading'}]});
   assert.equal((await h.send({type:'STATUS'})).title,null);
+});
+
+
+test('an unused website expires while the user continues working elsewhere', async () => {
+  const h=await harness(); await h.send({type:'UNLOCK'});
+  for(let i=0;i<5;i++) { h.advance(60); h.input(); await h.flush(); }
+  assert.equal(h.rules().sessionRules.length,0,'Activity outside this site must not keep its grant alive');
+  assert.ok(h.tabMap.get(1).url.startsWith(base),'The expiration alarm must cover the tab without a STATUS request');
+});
+
+test('input renews only its website, including input inside a frame', async () => {
+  const h=await harness({domains:['example.com','other.test'],grants:[{domain:'example.com'},{domain:'other.test'}],tabs:[
+    {id:1,windowId:1,active:true,url:'https://example.com/edit'},
+    {id:2,windowId:1,active:false,url:'https://other.test/private'}]});
+  h.advance(250); h.input();
+  const frame={...h.webSender(1,2),url:'https://editor.test/embed'};
+  assert.equal((await h.send({type:'ACTIVITY'},frame)).ok,true);
+  h.advance(50); h.input(); await h.flush();
+  assert.deepEqual(h.rules().sessionRules.map(r=>r.condition.requestDomains[0]),['example.com']);
+  assert.equal(h.tabMap.get(1).url,'https://example.com/edit');
+  assert.ok(h.tabMap.get(2).url.startsWith(base));
+  h.advance(250);h.input();await h.flush();
+  assert.equal(h.rules().sessionRules.length,0);
+});
+test('background tabs and unfocused Chrome windows cannot extend a website grant', async () => {
+  for(const focused of [false,true]) {
+    const h=await harness();await h.send({type:'UNLOCK'});
+    if(focused)h.tabMap.get(1).active=false;else h.focusWindow(2);
+    h.advance(250);h.input();await h.send({type:'ACTIVITY'},h.webSender());
+    h.advance(50);h.input();await h.flush();
+    assert.equal(h.rules().sessionRules.length,0);
+  }
+});
+test('returning before expiration renews the selected site, but returning late never revives it', async () => {
+  for(const elapsed of [250,301]) {
+    const h=await harness();await h.send({type:'UNLOCK'});
+    h.advance(elapsed,false,false);h.input();
+    h.api.tabs.onActivated.fire({tabId:1});await h.flush();
+    if(elapsed===250) { h.advance(50);h.input();await h.flush();assert.equal(h.rules().sessionRules.length,1); }
+    else assert.equal(h.rules().sessionRules.length,0);
+  }
+});
+test('worker restart keeps remaining deadlines and clock rollback revokes grants', async () => {
+  const h=await harness();await h.send({type:'UNLOCK'});
+  h.advance(200);h.input();
+  const grants=(await h.api.storage.session.get({})).grants;
+  const restarted=await harness({grants,tabs:[...h.tabMap.values()],startTime:h.now()});
+  restarted.advance(100);restarted.input();await restarted.flush();
+  assert.equal(restarted.rules().sessionRules.length,0);
+  const rollback=await harness({grants,startTime:1});
+  assert.equal(rollback.rules().sessionRules.length,0);
+});
+test('if Chrome cannot schedule expiration, no website is left unlocked', async () => {
+  const h=await harness();h.api.alarms.create=async()=>{throw Error('Alarm failed');};
+  assert.equal((await h.send({type:'UNLOCK'})).ok,false);
+  assert.equal(h.rules().sessionRules.length,0);
+  assert.ok(h.tabMap.get(1).url.startsWith(base));
+});
+
+test('selecting a stale lock page renews a live domain session without another fingerprint', async () => {
+ const url=`${base}locked.html#https://example.com/other`;
+ const h=await harness({grants:[{domain:'example.com'}],tabs:[{id:1,windowId:1,active:true,url}]});
+ h.advance(250);h.input();h.api.tabs.onActivated.fire({tabId:1});await h.flush();
+ h.advance(50);h.input();await h.flush();assert.equal(h.rules().sessionRules.length,1);
+});
+test('legacy grants with no timestamp cannot become unlimited sessions', async () => {
+ const h=await harness({grants:[{domain:'example.com',lastActivity:undefined}]});
+ assert.equal(h.rules().sessionRules.length,0);
 });

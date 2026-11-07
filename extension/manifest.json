@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "OpenLocker",
-  "version": "0.1.8",
+  "version": "0.1.9",
   "description": "A little privacy, at your fingertips. Lock websites with your Mac's Touch ID.",
   "minimum_chrome_version": "120",
   "permissions": [
@@ -11,7 +11,8 @@
     "nativeMessaging",
     "declarativeNetRequestWithHostAccess",
     "idle",
-    "webNavigation"
+    "webNavigation",
+    "alarms"
   ],
   "host_permissions": [
     "http://*/*",
@@ -48,6 +49,18 @@
         "guard.js"
       ],
       "run_at": "document_start"
+    },
+    {
+      "matches": [
+        "http://*/*",
+        "https://*/*"
+      ],
+      "js": [
+        "activity.js"
+      ],
+      "run_at": "document_start",
+      "all_frames": true,
+      "match_origin_as_fallback": true
     }
   ],
   "web_accessible_resources": [
