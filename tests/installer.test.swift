@@ -35,6 +35,9 @@ struct InstallerTests {
         let websites = Data("{\"domains\":[\"example.com\",\"127.0.0.1\"]}".utf8)
         try websites.write(to: chromeSettings)
         let second = try InstallerEngine(payload: payload, home: home).install()
+        let sourceManifest = try Data(contentsOf: payload.appendingPathComponent("extension/manifest.json"))
+        let installedManifest = try Data(contentsOf: second.extensionDirectory.appendingPathComponent("manifest.json"))
+        precondition(sourceManifest == installedManifest, "A full Mac update must install the bundled extension version too")
         precondition(first.extensionDirectory == second.extensionDirectory)
         precondition(!fm.fileExists(atPath: obsolete.path))
         precondition(fm.fileExists(atPath: keep.path))
@@ -93,7 +96,7 @@ struct InstallerTests {
         let bad = temporary.appendingPathComponent("invalid-payload")
         try fm.copyItem(at: payload, to: bad)
         let badManifest = bad.appendingPathComponent("extension/manifest.json")
-        try Data("{\"key\":\"YmFk\",\"version\":\"0.1.10\"}".utf8).write(to: badManifest)
+        try Data("{\"key\":\"YmFk\",\"version\":\"0.1.11\"}".utf8).write(to: badManifest)
         do { _ = try InstallerEngine(payload: bad, home: home).install(); fatalError("Invalid identity accepted") }
         catch is InstallFailure { }
         precondition(fm.isExecutableFile(atPath: second.helperExecutable.path))

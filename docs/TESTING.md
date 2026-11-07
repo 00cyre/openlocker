@@ -85,3 +85,11 @@ Current automated additions: universal Apple Silicon/Intel builds, code-signatur
 - [ ] Cancel or fail an update download: keep settings and locked tabs. Test missing windows, a tab closed during update, and a failed tab restoration without losing the recovery record.
 
 Local automation includes `python3 tests/update_windows.py` for actual disposable AppKit windows; Chrome reload behavior is modeled in regression tests against the documented unload behavior. Live Chrome UI and physical fingerprints still require an interactive acceptance pass.
+
+## Appearance and combined updates
+
+- [ ] Switch system appearance while the lock page, popup, settings, a Mac gate, and the installer are open. Each follows light/dark without restarting. Text, buttons, input fields, and notices remain readable.
+- [ ] Update through the Mac menu. Check that the managed extension manifest and helper match the new Mac app version while the running Chrome extension remains old until Reload.
+- [ ] Check the Mac post-update notice/menu and extension badge/banner. Open extension settings in one click; it opens a new tab at OpenLocker's details without replacing the protected tab or prompting Touch ID.
+- [ ] Disconnect internet and verify a locally installed newer version still produces the reload reminder. After Reload, the matching runtime clears its badge/banner and the Mac reminder clears on its next check.
+- [ ] Refresh already-open pages when ready to replace their previous content scripts. Repeat in every Chrome profile used.

@@ -36,6 +36,7 @@ test('browser shortcuts, modifier keys, synthetic events and settings do not pro
   await p.fire('pointerdown',{isTrusted:false});
   await p.fire('pointerdown',{button:2});
   await p.fire('pointerdown',{target:{closest:selector=>selector==='#settings'?{id:'settings'}:null}});
+  await p.fire('pointerdown',{target:{closest:selector=>selector==='#reload-notice'?{id:'reload-notice'}:null}});
   await p.fire('#settings:click');
   assert.equal(p.requests.includes('UNLOCK'),false);
   assert.ok(p.requests.includes('SETTINGS'));

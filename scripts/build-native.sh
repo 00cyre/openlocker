@@ -20,7 +20,7 @@ for OPENLOCKER_ARCH in ${OPENLOCKER_ARCHS:-$(uname -m)}; do
   OPENLOCKER_BINARY="$OPENLOCKER_ROOT/build/OpenLocker-$OPENLOCKER_ARCH"
   xcrun swiftc -O -swift-version 5 -framework LocalAuthentication -framework AppKit -framework Security -framework CryptoKit \
     -target "$OPENLOCKER_ARCH-apple-macosx13.0" \
-    "$OPENLOCKER_ROOT/shared/CodeIdentity.swift" "$OPENLOCKER_ROOT/shared/ReleaseUpdater.swift" "$OPENLOCKER_ROOT/native/Config.swift" "$OPENLOCKER_ROOT/native/main.swift" \
+    "$OPENLOCKER_ROOT/shared/CodeIdentity.swift" "$OPENLOCKER_ROOT/shared/ReleaseUpdater.swift" "$OPENLOCKER_ROOT/shared/ExtensionInstallation.swift" "$OPENLOCKER_ROOT/native/Config.swift" "$OPENLOCKER_ROOT/native/main.swift" \
     -o "$OPENLOCKER_BINARY"
   OPENLOCKER_BINARIES+=("$OPENLOCKER_BINARY")
 done

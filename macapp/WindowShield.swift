@@ -5,6 +5,13 @@ struct ShieldTarget {
     let pid: pid_t
     let name: String
 }
+private final class ShieldTint: NSView {
+    override func draw(_ dirtyRect: NSRect) {
+        NSColor.windowBackgroundColor.withAlphaComponent(0.36).setFill()
+        dirtyRect.fill()
+    }
+    override func viewDidChangeEffectiveAppearance() { super.viewDidChangeEffectiveAppearance(); needsDisplay = true }
+}
 private final class ShieldPanel: NSPanel {
     override var canBecomeKey: Bool { true }
     override var canBecomeMain: Bool { false }
@@ -83,22 +90,19 @@ final class WindowShield {
         blur.material = .hudWindow
         blur.blendingMode = .behindWindow
         blur.state = .active
-        blur.appearance = NSAppearance(named: .aqua)
         blur.autoresizingMask = [.width, .height]
         blur.requestUnlock = { [weak self, weak panel] in
             panel?.makeKey()
             self?.onUnlock?(target.pid)
         }
-        let tint = NSView(frame: blur.bounds)
-        tint.wantsLayer = true
-        tint.layer?.backgroundColor = NSColor(srgbRed: 0.94, green: 0.96, blue: 0.91, alpha: 0.36).cgColor
+        let tint = ShieldTint(frame: blur.bounds)
         tint.autoresizingMask = [.width, .height]
         blur.addSubview(tint)
         let label = NSTextField(labelWithString: "🔒  \(target.name) is locked\nClick to unlock with Touch ID")
         label.alignment = .center
         label.maximumNumberOfLines = 2
         label.font = .systemFont(ofSize: 16, weight: .medium)
-        label.textColor = NSColor(srgbRed: 0.20, green: 0.29, blue: 0.21, alpha: 1)
+        label.textColor = .labelColor
         label.translatesAutoresizingMaskIntoConstraints = false
         blur.addSubview(label)
         NSLayoutConstraint.activate([

@@ -17,6 +17,10 @@ export function releaseVersion(value) {
   if (asset?.browser_download_url !== `https://github.com/00cyre/openlocker/releases/download/v${version}/${name}` || !(asset.size > 0 && asset.size <= 100_000_000)) throw Error('This release has no supported Mac update.');
   return version;
 }
+export async function isManagedInstallation() {
+  try { const response = await fetch(chrome.runtime.getURL('installation.json')); return response.ok && (await response.json()).managed === true; }
+  catch { return false; }
+}
 export async function updateStatus(force = false) {
   let { updateCheck } = await chrome.storage.local.get({ updateCheck: null });
   if (force || !versionParts(updateCheck?.version) || !(Date.now() - updateCheck.checkedAt >= 0 && Date.now() - updateCheck.checkedAt < 3_600_000)) {
@@ -25,8 +29,7 @@ export async function updateStatus(force = false) {
     updateCheck = { version: releaseVersion(await response.json()), checkedAt: Date.now() };
     await chrome.storage.local.set({ updateCheck });
   }
-  let managed = false;
-  try { const response = await fetch(chrome.runtime.getURL('installation.json')); managed = response.ok && (await response.json()).managed === true; } catch {}
+  const managed = await isManagedInstallation();
   const installed = chrome.runtime.getManifest().version;
   return { installed, version: updateCheck.version, available: isNewer(updateCheck.version, installed), managed };
 }

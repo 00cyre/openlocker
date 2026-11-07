@@ -6,8 +6,8 @@ final class InstallerDelegate: NSObject, NSApplicationDelegate {
     private var window: NSWindow!
     private let stack = NSStackView()
     private var result: InstallResult?
-    private let green = NSColor(srgbRed: 0.20, green: 0.29, blue: 0.21, alpha: 1)
-    private let muted = NSColor(srgbRed: 0.45, green: 0.48, blue: 0.42, alpha: 1)
+    private let green = OpenLockerTheme.accent
+    private let muted = NSColor.secondaryLabelColor
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         NSApp.setActivationPolicy(.regular)
@@ -15,8 +15,7 @@ final class InstallerDelegate: NSObject, NSApplicationDelegate {
                           styleMask: [.titled, .closable, .miniaturizable], backing: .buffered, defer: false)
         window.title = "Install OpenLocker"
         window.isReleasedWhenClosed = false
-        window.backgroundColor = NSColor(srgbRed: 0.96, green: 0.96, blue: 0.94, alpha: 1)
-        window.appearance = NSAppearance(named: .aqua)
+        window.backgroundColor = OpenLockerTheme.background
         window.center()
         stack.orientation = .vertical
         stack.alignment = .leading
@@ -57,7 +56,7 @@ final class InstallerDelegate: NSObject, NSApplicationDelegate {
         button.bezelStyle = .rounded
         button.controlSize = .large
         button.font = .systemFont(ofSize: 14, weight: .semibold)
-        if primary { button.bezelColor = green; button.contentTintColor = .white }
+        if primary { button.bezelColor = OpenLockerTheme.button; button.contentTintColor = .white }
         stack.addArrangedSubview(button)
     }
     private func showWelcome() {
@@ -67,7 +66,7 @@ final class InstallerDelegate: NSObject, NSApplicationDelegate {
         text("✓  Apple Silicon + Intel\n✓  No Terminal, Xcode, or admin password\n✓  No accounts or cloud")
         button("Install OpenLocker", action: #selector(install), primary: true)
         text("Mac app locking needs Accessibility permission. Chrome will ask you to load the extension once. We'll guide you through both.", size: 12)
-        text("Version 0.1.10 · macOS 13+ · Google Chrome 120+", size: 11)
+        text("Version 0.1.11 · macOS 13+ · Google Chrome 120+", size: 11)
     }
     @objc private func install() {
         if !NSRunningApplication.runningApplications(withBundleIdentifier: "cc.openlocker.mac").isEmpty {

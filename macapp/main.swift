@@ -20,6 +20,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, NSWind
     private var tokens: [NSObjectProtocol] = []
     private var timer: Timer?
     private var updateTimer: Timer?
+    private var chromeStatusTimer: Timer?
     private var gate: NSWindow?
     private var action: GateAction?
     private var authentication: LAContext?
@@ -30,7 +31,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, NSWind
     private var updateBusy = false
     private var updateChecking = false
     private let shields = WindowShield()
-    private let green = NSColor(srgbRed: 0.20, green: 0.29, blue: 0.21, alpha: 1)
+    private let green = OpenLockerTheme.accent
     private let configURL = FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent("Library/Application Support/OpenLocker/protected-apps.json")
     private var recoveryURL: URL { configURL.deletingLastPathComponent().appendingPathComponent("update-session.json") }
     private let excluded = Set(["cc.openlocker.mac", "cc.openlocker.installer", "cc.openlocker.touchid", "com.apple.finder", "com.apple.dock", "com.apple.loginwindow", "com.apple.systempreferences", "com.apple.SecurityAgent"])
@@ -63,6 +64,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, NSWind
         syncWatchers()
         lockAll()
         restoreUpdateSession()
+        refreshChromeUpdateIndicator()
+        chromeStatusTimer = Timer.scheduledTimer(withTimeInterval: 60, repeats: true) { [weak self] _ in self?.refreshChromeUpdateIndicator() }
+        if CommandLine.arguments.contains("--resume-update") {
+            DispatchQueue.main.async { [weak self] in self?.showChromeReloadNotice() }
+        }
         timer = Timer(timeInterval: 0.15, repeats: true) { [weak self] _ in self?.tick() }
         RunLoop.main.add(timer!, forMode: .common)
         if accessibilitySetup.needsRenewal {
@@ -194,6 +200,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, NSWind
         return item
     }
     private func rebuildMenu() {
+        refreshChromeUpdateIndicator()
         menu.removeAllItems()
         let header = item("OpenLocker", action: nil); header.isEnabled = false; menu.addItem(header)
         let timeout = item("Each app relocks after 5 minutes away", action: nil); timeout.isEnabled = false; menu.addItem(timeout)
@@ -217,10 +224,41 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, NSWind
         menu.addItem(login)
         let update = item(updateBusy ? "Updating…" : updateChecking ? "Checking for updates…" : availableRelease.map { "Update to \($0.version.text)…" } ?? "Check for updates…", action: #selector(updateApp))
         update.isEnabled = !updateBusy && !updateChecking; menu.addItem(update)
+        if let chrome = chromeInstallation, chrome.needsReload {
+            menu.addItem(item("Chrome \(chrome.installed.text) installed — Reload extension…", action: #selector(openChromeExtensionSettings)))
+        }
         menu.addItem(item("Install Chrome extension…", action: #selector(installChrome)))
         menu.addItem(item("About & help", action: #selector(welcome)))
         menu.addItem(.separator())
         menu.addItem(item("Quit OpenLocker…", action: #selector(quit)))
+    }
+    private var chromeInstallation: ExtensionInstallation? {
+        ExtensionInstallation.read(home: FileManager.default.homeDirectoryForCurrentUser)
+    }
+    private func refreshChromeUpdateIndicator() {
+        let pending = chromeInstallation?.needsReload == true
+        status.button?.image = NSImage(systemSymbolName: pending ? "lock.circle.fill" : "lock.circle", accessibilityDescription: "OpenLocker")
+        status.button?.image?.isTemplate = true
+        status.button?.toolTip = pending ? "OpenLocker — Chrome update installed; reload extension" : "OpenLocker — lock apps with Touch ID"
+    }
+    private func showChromeReloadNotice() {
+        guard action == nil, !accessibilitySetup.isVisible, let chrome = chromeInstallation, chrome.needsReload else { return }
+        let notice = NSAlert()
+        notice.messageText = "Chrome extension update installed"
+        notice.informativeText = "Version \(chrome.installed.text) was installed with OpenLocker. Open extension settings and click Reload on OpenLocker to activate it. Keep the extension installed. Refresh already-open webpages when you're ready.\n\nIf you use several Chrome profiles, reload it in each profile."
+        notice.addButton(withTitle: "Open extension settings")
+        notice.addButton(withTitle: "Later")
+        if notice.runModal() == .alertFirstButtonReturn { openChromeExtensionSettings() }
+    }
+    @objc private func openChromeExtensionSettings() {
+        guard let chrome = NSWorkspace.shared.urlForApplication(withBundleIdentifier: "com.google.Chrome") else {
+            alert("Chrome isn't installed", "Install Google Chrome, then choose Install Chrome extension from OpenLocker's menu."); return
+        }
+        let id = Config.allowedOrigin.replacingOccurrences(of: "chrome-extension://", with: "").replacingOccurrences(of: "/", with: "")
+        let url = URL(string: "chrome://extensions/?id=\(id)")!
+        NSWorkspace.shared.open([url], withApplicationAt: chrome, configuration: NSWorkspace.OpenConfiguration()) { _, error in
+            if error != nil { DispatchQueue.main.async { self.alert("Open Chrome extension settings", "Open chrome://extensions and click Reload on OpenLocker.") } }
+        }
     }
     @objc private func pickApp() {
         if let storageError { alert("Your protected app list needs attention", storageError); return }
@@ -301,6 +339,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, NSWind
                 self.updateChecking = false
                 if !silent {
                     if self.availableRelease != nil { self.updateApp() }
+                    else if self.chromeInstallation?.needsReload == true { self.showChromeReloadNotice() }
                     else { self.alert("You're up to date", "OpenLocker \(self.appVersion.text) is the latest installed version.") }
                 }
             } catch { self.updateChecking = false; if !silent { self.alert("Couldn't check for updates", error.localizedDescription) } }
@@ -339,7 +378,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, NSWind
         }
     }
     @objc private func welcome() {
-        alert("Your apps. Your fingerprint.", "Click OpenLocker's menu-bar icon → Lock an app, then click any window to protect its whole app. Each app stays unlocked while you use it and relocks after 5 minutes without use. Using another app does not restart its timer.\n\nAccessibility and enrolled Touch ID are required. OpenLocker must stay running; enable Start at login if you want it after a restart. This is a convenience lock: macOS may briefly reveal windows before the blur appears, and stopping OpenLocker bypasses it.\n\nVersion 0.1.10 · Local only · No accounts")
+        alert("Your apps. Your fingerprint.", "Click OpenLocker's menu-bar icon → Lock an app, then click any window to protect its whole app. Each app stays unlocked while you use it and relocks after 5 minutes without use. Using another app does not restart its timer.\n\nAccessibility and enrolled Touch ID are required. OpenLocker must stay running; enable Start at login if you want it after a restart. This is a convenience lock: macOS may briefly reveal windows before the blur appears, and stopping OpenLocker bypasses it.\n\nVersion 0.1.11 · Local only · No accounts")
     }
     private func alert(_ title: String, _ message: String) {
         let alert = NSAlert(); alert.messageText = title; alert.informativeText = message
@@ -358,8 +397,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, NSWind
         let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 440, height: 420), styleMask: [.titled, .closable], backing: .buffered, defer: false)
         window.title = "OpenLocker"; window.isReleasedWhenClosed = false; window.delegate = self
         window.level = .modalPanel; window.collectionBehavior = [.moveToActiveSpace, .fullScreenAuxiliary]
-        window.appearance = NSAppearance(named: .aqua)
-        window.backgroundColor = NSColor(srgbRed: 0.96, green: 0.96, blue: 0.94, alpha: 1)
+        window.backgroundColor = OpenLockerTheme.background
         let stack = NSStackView(); stack.orientation = .vertical; stack.alignment = .centerX; stack.spacing = 18
         stack.translatesAutoresizingMaskIntoConstraints = false
         window.contentView!.addSubview(stack)
@@ -372,7 +410,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, NSWind
         switch requested {
         case .unlock(let app): title = "\(app.name) is locked."; detail = "A quick touch, and you're back in.\nRelocks after 5 minutes without using this app."; buttonTitle = "Unlock with Touch ID"
         case .remove(let app): title = "Stop protecting \(app.name)?"; detail = "Confirm with your fingerprint to remove this app from OpenLocker."; buttonTitle = "Remove with Touch ID"
-        case .update: title = "Update OpenLocker?"; detail = "Keeps your apps open and protection saved. Only OpenLocker restarts."; buttonTitle = "Update with Touch ID"
+        case .update: title = "Update OpenLocker?"; detail = "Updates the Mac app and Chrome extension files.\nYour apps stay open. Reload the extension in Chrome afterward."; buttonTitle = "Update with Touch ID"
         case .quit: title = "Quit OpenLocker?"; detail = "Your apps won't be protected while OpenLocker is closed."; buttonTitle = "Quit with Touch ID"
         }
         func label(_ value: String, size: CGFloat, color: NSColor) -> NSTextField {
@@ -384,7 +422,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, NSWind
         _ = label(title, size: 26, color: green)
         _ = label(detail, size: 13, color: .secondaryLabelColor)
         let button = NSButton(title: buttonTitle, target: self, action: #selector(authenticate))
-        button.bezelStyle = .rounded; button.controlSize = .large; button.bezelColor = green; button.contentTintColor = .white
+        button.bezelStyle = .rounded; button.controlSize = .large; button.bezelColor = OpenLockerTheme.button; button.contentTintColor = .white
         stack.addArrangedSubview(button); unlockButton = button
         let cancel = NSButton(title: "Keep locked", target: self, action: #selector(cancel))
         cancel.bezelStyle = .inline; stack.addArrangedSubview(cancel)

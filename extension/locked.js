@@ -43,7 +43,7 @@ async function unlock() {
   } finally { unlocking = false; }
 }
 function interact(event) {
-  if (!event.isTrusted || event.target?.closest?.('#settings') || event.altKey || event.ctrlKey || event.metaKey) return;
+  if (!event.isTrusted || event.target?.closest?.('#settings') || event.target?.closest?.('#reload-notice') || event.altKey || event.ctrlKey || event.metaKey) return;
   if (event.type === 'keydown' && (event.repeat || ['Alt', 'Control', 'Meta', 'Shift', 'Tab', 'Escape', 'CapsLock'].includes(event.key))) return;
   if (event.type === 'pointerdown' && event.button !== 0) return;
   // Native button activation has its own click handler. Do not also consume

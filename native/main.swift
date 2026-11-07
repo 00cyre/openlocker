@@ -51,7 +51,15 @@ var error: NSError?
 let available = context.canEvaluatePolicy(.deviceOwnerAuthenticationWithBiometrics, error: &error) && context.biometryType == .touchID
 
 if operation == "status" {
-    reply(["id": id, "available": available, "version": "0.1.10", "supportsUpdates": true, "message": available ? "Touch ID is ready." : message(for: error)])
+    let home = FileManager.default.homeDirectoryForCurrentUser
+    let runningManaged = request["extensionManaged"] as? Bool == true
+    if runningManaged, let version = request["extensionVersion"] as? String { try? ExtensionInstallation.report(version, home: home) }
+    let installation = ExtensionInstallation.read(home: home)
+    var response: [String: Any] = ["id": id, "available": available, "version": "0.1.11", "supportsUpdates": true,
+        "extensionManaged": installation != nil, "runningExtensionManaged": runningManaged,
+        "message": available ? "Touch ID is ready." : message(for: error)]
+    if let installation { response["installedExtensionVersion"] = installation.installed.text }
+    reply(response)
 }
 if operation == "update-extension" {
     Task {

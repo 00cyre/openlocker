@@ -7,7 +7,7 @@
   let expiryTimer;
   let allowedUntil = 0;
   let allowedAt = 0;
-  cover.textContent = 'html { visibility: hidden !important; opacity: 0 !important; pointer-events: none !important; background: #f5f5f2 !important; }';
+  cover.textContent = 'html { visibility: hidden !important; opacity: 0 !important; pointer-events: none !important; background: #f5f5f2 !important; } @media (prefers-color-scheme: dark) { html { background: #151a16 !important; } }';
   function hide() {
     if (!shouldCover) return;
     if (cover.isConnected) return;

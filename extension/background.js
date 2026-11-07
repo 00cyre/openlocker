@@ -1,4 +1,4 @@
-import { updateStatus } from './updates.js';
+import { updateStatus, isNewer, isManagedInstallation } from './updates.js';
 import { loadProtectedSites, saveProtectedSites } from './protected-sites.js';
 import { LockedTabs } from './locked-tabs.js';
 import { HOST, MAX_DOMAINS, IDLE_SECONDS, normalizeDomain, protectedDomain, domainRules, grantRule, lockedURL, originalURL, trustedPage, webURL, matches } from './core.js';
@@ -7,6 +7,7 @@ const base = chrome.runtime.getURL('');
 const now = Date.now;
 const timeout = IDLE_SECONDS * 1000;
 const expiryAlarm = 'openlocker-domain-expiry';
+const installationAlarm = 'openlocker-installation-check';
 const liveGrant = (grant, time = now()) => Number.isFinite(grant.lastActivity) && time >= grant.lastActivity && time - grant.lastActivity < timeout;
 const lockedTabs = new LockedTabs(chrome, base);
 let tail = Promise.resolve();
@@ -137,11 +138,30 @@ const ready = serial(async () => {
 async function native(operation, domain = '') {
   const id = crypto.randomUUID();
   let response;
-  try { response = await chrome.runtime.sendNativeMessage(HOST, { operation, id, domain }); }
+  try { response = await chrome.runtime.sendNativeMessage(HOST, { operation, id, domain, extensionVersion: chrome.runtime.getManifest().version,
+    ...(operation === 'status' ? { extensionManaged: await isManagedInstallation() } : {}) }); }
   catch { fail('Install the OpenLocker Mac helper, then try again.'); }
   if (response?.id !== id) fail('The Mac helper returned an invalid response.');
   return response;
 }
+
+async function localUpdateStatus() {
+  const helper = await native('status');
+  const runningVersion = chrome.runtime.getManifest().version;
+  const installedVersion = helper.installedExtensionVersion;
+  const reloadRequired = helper.extensionManaged === true && helper.runningExtensionManaged === true && isNewer(installedVersion, runningVersion);
+  await chrome.action.setBadgeText({ text: reloadRequired ? '↻' : '' });
+  if (reloadRequired) await chrome.action.setBadgeBackgroundColor({ color: '#334b35' });
+  await chrome.action.setTitle({ title: reloadRequired ? `OpenLocker ${installedVersion} installed — reload extension` : 'OpenLocker' });
+  return { runningVersion, installedVersion, reloadRequired };
+}
+
+// A periodic local helper check notices files installed by the Mac updater.
+// It does not contact GitHub, authenticate, reload Chrome, or replace any tab.
+ready.then(async () => {
+  if (!await chrome.alarms.get(installationAlarm)) await chrome.alarms.create(installationAlarm, { periodInMinutes: 5 });
+})
+  .catch(() => {});
 
 async function authenticate(domain) {
   if (authenticating) fail('A Touch ID request is already open.');
@@ -188,6 +208,11 @@ async function handle(message, sender) {
     });
   }
   if (!trustedPage(sender, base, ['popup.html', 'locked.html', 'settings.html'])) fail('This action is only available inside OpenLocker.');
+  if (type === 'LOCAL_UPDATE_STATUS') return localUpdateStatus();
+  if (type === 'OPEN_EXTENSION_SETTINGS') {
+    await chrome.tabs.create({ url: `chrome://extensions/?id=${chrome.runtime.id}`, active: true });
+    return {};
+  }
   if (type === 'STATUS') return serial(() => snapshot(sender.tab?.id ?? message.tabId));
   if (installingUpdate && ['UNLOCK', 'LOCK_DOMAIN', 'REMOVE_DOMAIN', 'INSTALL_UPDATE'].includes(type)) fail('OpenLocker is updating. Your sites and tabs are being preserved.');
   if (type === 'HELPER_STATUS') {
@@ -195,7 +220,11 @@ async function handle(message, sender) {
   }
   if (type === 'UPDATE_STATUS' || type === 'INSTALL_UPDATE') {
     if (!trustedPage(sender, base, ['popup.html', 'settings.html'])) fail('Updates are only available in OpenLocker settings or its popup.');
-    if (type === 'UPDATE_STATUS') return updateStatus(message.force === true);
+    if (type === 'UPDATE_STATUS') {
+      const local = await localUpdateStatus().catch(() => null);
+      if (local?.reloadRequired) return { installed: local.runningVersion, version: local.installedVersion, available: false, managed: true, reloadRequired: true };
+      return updateStatus(message.force === true);
+    }
     installingUpdate = true;
     try {
       const update = await updateStatus(true);
@@ -335,13 +364,15 @@ chrome.webNavigation.onCommitted.addListener(details => {
 });
 chrome.idle.onStateChanged.addListener(state => { if (state !== 'active') event(() => revoke()); });
 chrome.alarms.onAlarm.addListener(alarm => {
+  if (alarm.name === installationAlarm) { localUpdateStatus().catch(() => {}); return; }
   if (alarm.name === expiryAlarm) event(async () => {
     await expireIfInactive();
     await scheduleExpiry((await session()).grants);
   });
 });
-chrome.runtime.onStartup.addListener(() => event(() => revoke()));
+chrome.runtime.onStartup.addListener(() => { event(() => revoke()); localUpdateStatus().catch(() => {}); });
 chrome.runtime.onInstalled.addListener(details => event(async () => {
   await revoke();
+  void localUpdateStatus().catch(() => {});
   if (details.reason === 'install') await chrome.runtime.openOptionsPage();
 }));

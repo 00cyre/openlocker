@@ -10,7 +10,7 @@ cd openlocker
 npm run build:installer
 ```
 
-Open `dist/OpenLocker-0.1.10-macOS.dmg` and run the installer, or build individual pieces:
+Open `dist/OpenLocker-0.1.11-macOS.dmg` and run the installer, or build individual pieces:
 
 ```sh
 npm run build:mac          # Mac menu-bar app in build/desktop/
@@ -75,9 +75,9 @@ Grant rules explicitly list resource types, including `main_frame`, so they matc
 
 Push a version tag matching `package.json`. The release workflow builds, tests, and publishes these assets only with the pinned persistent signing identity. For local release builds, use `npm run build:release` with the existing signing keychain configured; ad-hoc fallback is rejected:
 
-- `OpenLocker-0.1.10-macOS.dmg`
-- `OpenLocker-0.1.10-macOS.zip`
-- `OpenLocker-0.1.10-source.zip`
+- `OpenLocker-0.1.11-macOS.dmg`
+- `OpenLocker-0.1.11-macOS.zip`
+- `OpenLocker-0.1.11-source.zip`
 - `SHA256SUMS.txt`
 
 The [manual checklist](TESTING.md) covers the hardware and OS integration that automated checks cannot establish. Record unperformed checks in release notes.
@@ -103,3 +103,11 @@ The extension's pending authentication tracks its initiating tab. Returning from
 `UpdateRecovery.swift` provides the Mac handoff inventory. The app records it immediately before the verified installer starts; the installer also captures running apps for updates from older versions. Only OpenLocker exits. The replacement consumes the expiring inventory and leaves every surviving process alone. A missing protected app can reopen after checking its path and bundle ID. Fingerprint authentication remains separate.
 
 Run `python3 tests/update_windows.py` after building the installer and running installer tests for the local GUI integration check. It uses disposable AppKit windows with unsaved sample text and temporary home directories, verifies process/window identity across installer transactions and blur-process restart, and closes its own fixtures. It does not modify user apps or their protection settings.
+
+## System appearance and extension activation
+
+`styles.css` uses `prefers-color-scheme` and semantic color variables; native windows inherit macOS appearance and use dynamic colors in `shared/Theme.swift`. Shield tint redraws on appearance changes. No system preference is written.
+
+Full Mac updates already use `InstallerEngine.install(scope: .all)`, which atomically replaces the desktop app, helper, and managed extension folder together. `ExtensionInstallation` compares that folder's version with the latest version reported by Chrome in a local receipt. The Mac menu and post-update notice offer a Chrome settings link while activation is pending. An unknown runtime gets a reminder too.
+
+Each extension checks its own running version against the helper's installed version, independently of GitHub connectivity. Checks run on startup, in visible update UI, and through a five-minute alarm. A badge and in-page notice offer `chrome.tabs.create` for the fixed extension-details URL, leaving the current tab intact. Only trusted extension pages can invoke this action. Reload reminders never authenticate, change protection lists, or reload tabs. The Mac receipt represents the most recently reporting profile; users with multiple Chrome profiles should reload in each.

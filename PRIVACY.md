@@ -6,7 +6,7 @@ The extension stores a protected-domain list and a recovery copy in `chrome.stor
 
 A separate local title record follows currently open protected tabs, including while unlocked, and is removed on closing the tab, navigating away from protected sites, or removing protection. Locked tab titles and site icons remain visible in the tab strip by design. Chrome’s favicon API supplies the site icon locally; OpenLocker does not request remote icon URLs while locked. Lock-page input is used only to start Touch ID. On normal web pages, a content script reports the occurrence of trusted input at most once a second, including inside frames. The worker verifies that the tab and Chrome window are active before renewing an existing protected-domain grant. Only the protected domain’s last-use timestamp is retained for the current browser session. No key contents, pointer coordinates, text, or input event details are recorded or transmitted.
 
-The native helper receives an operation, a fresh request ID, and (for authentication) the protected domain. An explicit update operation downloads and installs the verified Chrome components. macOS displays the system Touch ID prompt and returns an authentication result. Neither OpenLocker component receives fingerprint images or biometric templates. Any enrolled fingerprint for the active macOS user can authenticate.
+The native helper receives an operation, a fresh request ID, the running extension version, and (for authentication) the protected domain. Local status checks store only the most recently reported version in `~/Library/Application Support/OpenLocker/extension-runtime.json` so the Mac app can show a reload reminder. No Chrome profile identifiers, URLs, or unlock grants are stored in this receipt. It is display-only state; with multiple profiles, each extension checks its own version and the Mac app shows the most recently reported one. An explicit update operation downloads and installs the verified Chrome components. macOS displays the system Touch ID prompt and returns an authentication result. Neither OpenLocker component receives fingerprint images or biometric templates. Any enrolled fingerprint for the active macOS user can authenticate.
 
 Permissions:
 
@@ -20,9 +20,9 @@ Permissions:
 | HTTP/HTTPS host access | Apply blocking and a document-start guard across the sites the user chooses. |
 | `webNavigation` | Recheck protected navigation, including cached documents. |
 | `idle` | Revoke access when the Mac is locked or globally idle. |
-| `alarms` | Expire each website’s grant even while Chrome is in the background. |
+| `alarms` | Expire each website’s grant and check locally for newly installed extension files. |
 
-The UI uses bundled assets and system fonts. The Mac app checks for releases at launch and every six hours. The extension checks when its popup or settings opens, with results cached locally for an hour. These checks do not install anything automatically. Normal browsing after a successful unlock still contacts the website as usual. No claim is made about the privacy practices of those sites or Chrome itself.
+The UI uses bundled assets and system fonts. The Mac app checks for releases at launch and every six hours. The extension checks when its popup or settings opens, with results cached locally for an hour. A separate check asks the local helper about installed extension files every five minutes, on browser/extension startup, and when update UI opens. It does not contact GitHub or open Touch ID. These checks do not install anything automatically. A user-requested Mac update also installs the extension files; Chrome activation still requires Reload. Normal browsing after a successful unlock still contacts the website as usual. No claim is made about the privacy practices of those sites or Chrome itself.
 
 ## Mac menu-bar app
 
