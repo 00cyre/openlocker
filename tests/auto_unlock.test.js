@@ -35,7 +35,7 @@ test('browser shortcuts, modifier keys, synthetic events and settings do not pro
   for (const event of [{key:'t',metaKey:true},{key:'Tab',ctrlKey:true},{key:'a',repeat:true},{key:'a',isTrusted:false}]) await p.fire('keydown',event);
   await p.fire('pointerdown',{isTrusted:false});
   await p.fire('pointerdown',{button:2});
-  await p.fire('pointerdown',{target:{closest:()=>({id:'settings'})}});
+  await p.fire('pointerdown',{target:{closest:selector=>selector==='#settings'?{id:'settings'}:null}});
   await p.fire('#settings:click');
   assert.equal(p.requests.includes('UNLOCK'),false);
   assert.ok(p.requests.includes('SETTINGS'));
@@ -76,4 +76,14 @@ test('lock page keeps the saved title and uses the original page favicon', async
   assert.equal(icon.searchParams.get('pageUrl'),'https://example.com/private');
   const fresh=await page();
   assert.equal(fresh.document.title,'example.com/private · Locked');
+});
+
+test('unlock button consumes one click, without a second pointer or keyboard attempt', async () => {
+  const target={closest:selector=>selector==='#unlock'?{id:'unlock'}:null};
+  for(const [name,event] of [['pointerdown',{}],['keydown',{key:'Enter'}],['keydown',{key:' '}]]) {
+    const p=await page({cancel:true});
+    await p.fire(name,{target,...event});
+    await p.fire('#unlock:click',{target});
+    assert.equal(p.requests.filter(r=>r==='UNLOCK').length,1);
+  }
 });
