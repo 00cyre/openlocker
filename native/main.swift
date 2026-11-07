@@ -55,7 +55,7 @@ if operation == "status" {
     let runningManaged = request["extensionManaged"] as? Bool == true
     if runningManaged, let version = request["extensionVersion"] as? String { try? ExtensionInstallation.report(version, home: home) }
     let installation = ExtensionInstallation.read(home: home)
-    var response: [String: Any] = ["id": id, "available": available, "version": "0.1.11", "supportsUpdates": true,
+    var response: [String: Any] = ["id": id, "available": available, "version": "0.1.12", "supportsUpdates": true,
         "extensionManaged": installation != nil, "runningExtensionManaged": runningManaged,
         "message": available ? "Touch ID is ready." : message(for: error)]
     if let installation { response["installedExtensionVersion"] = installation.installed.text }

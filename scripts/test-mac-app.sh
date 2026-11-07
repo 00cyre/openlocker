@@ -5,6 +5,7 @@ cd "$OPENLOCKER_ROOT"
 mkdir -p build
 xcrun swiftc -swift-version 5 macapp/LockPolicy.swift tests/mac_policy.test.swift -o build/mac-policy-tests
 build/mac-policy-tests
+python3 tests/unlock_focus.py
 
 bash scripts/test-activation.sh
 
